@@ -18,6 +18,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     var tabs: [BrowserTab] = []
     var active = 0
     var entries: [FileEntry] = []
+    var hasParentRow = false
     let table = FileTable()
     let scroll = NSScrollView()
     let pathField = NSTextField()
@@ -47,7 +48,17 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     var ascending = true
     var shownHidden: Bool { preferences.object(forKey: "showHidden") as? Bool ?? true }
     var current: URL { tabs[active].url }
-    var selected: [URL] { table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0].url : nil } }
+    var selected: [URL] { table.selectedRowIndexes.compactMap { entry(at: $0)?.url } }
+    var parentSelected: Bool { hasParentRow && table.selectedRowIndexes == IndexSet(integer: 0) }
+    func isParentRow(_ row: Int) -> Bool { hasParentRow && row == 0 }
+    func row(forEntry index: Int) -> Int { index + (hasParentRow ? 1 : 0) }
+    func entry(at row: Int) -> FileEntry? {
+        let index = row - (hasParentRow ? 1 : 0)
+        return entries.indices.contains(index) ? entries[index] : nil
+    }
+    func rows(matching paths: Set<String>) -> IndexSet {
+        IndexSet(entries.indices.filter { paths.contains(entries[$0].url.path) }.map { row(forEntry: $0) })
+    }
     let dateFormatter: DateFormatter = {
         let value = DateFormatter(); value.locale = Locale(identifier: "ru_RU"); value.dateStyle = .short; value.timeStyle = .short; return value
     }()
@@ -225,9 +236,11 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
             button.bezelStyle = .recessed; button.alignment = .left; button.lineBreakMode = .byTruncatingMiddle
             button.state = current.standardizedFileURL.path == url.standardizedFileURL.path ? .on : .off
             button.toolTip = url.path
+            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             var views: [NSView] = [button]
             if ejectable { views.append(iconButton("Извлечь \(title)", "eject") { [weak self] in self?.eject(url) }) }
             let row = horizontal(views, spacing: 2); sidebar.addArrangedSubview(row)
+            button.widthAnchor.constraint(equalTo: sidebar.widthAnchor, constant: -32).isActive = true
             row.widthAnchor.constraint(equalTo: sidebar.widthAnchor).isActive = true
         }
         heading("Папки")
@@ -338,9 +351,10 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
                 case .success(let files): self.entries = files
                 case .failure(let error): self.entries = []; self.lastReadError = error.localizedDescription
                 }
+                self.hasParentRow = directory.path != "/"
                 self.table.reloadData()
                 let urls = self.revealURL.map { Set([$0.path]) } ?? self.tabs[self.active].selection
-                self.table.selectRowIndexes(IndexSet(self.entries.indices.filter { urls.contains(self.entries[$0].url.path) }), byExtendingSelection: false)
+                self.table.selectRowIndexes(self.rows(matching: urls), byExtendingSelection: false)
                 if self.revealURL != nil, let index = self.table.selectedRowIndexes.first { self.table.scrollRowToVisible(index) }
                 else {
                     self.scroll.contentView.scroll(to: NSPoint(x: 0, y: self.tabs[self.active].scroll - (self.table.headerView?.frame.height ?? 0)))
@@ -374,7 +388,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         search?.cancel(); watcher?.cancel(); watcher = nil; refreshWork?.cancel()
         generation = UUID(); let request = generation; let directory = current; let hidden = shownHidden
         let token = Cancellation(); search = token; isSearch = true; isLoading = false; lastReadError = nil
-        entries = []; table.reloadData(); table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden = false
+        entries = []; hasParentRow = false; table.reloadData(); table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden = false
         updateStatus()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result { try Files.search(in: directory, query: query, hidden: hidden, cancellation: token) { batch in
@@ -382,7 +396,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
                     guard let self, self.generation == request else { return }
                     let selection = Set(self.selected.map(\.path))
                     self.entries = self.sorted(self.entries + batch); self.table.reloadData()
-                    self.table.selectRowIndexes(IndexSet(self.entries.indices.filter { selection.contains(self.entries[$0].url.path) }), byExtendingSelection: false)
+                    self.table.selectRowIndexes(self.rows(matching: selection), byExtendingSelection: false)
                     self.updateStatus()
                 }
             } }
@@ -411,20 +425,29 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         if working { progress.startAnimation(nil) } else { progress.stopAnimation(nil) }
     }
 
-    func numberOfRows(in tableView: NSTableView) -> Int { entries.count }
+    func numberOfRows(in tableView: NSTableView) -> Int { row(forEntry: entries.count) }
     func tableViewSelectionDidChange(_ notification: Notification) { updateStatus() }
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
         guard let descriptor = tableView.sortDescriptors.first else { return }
         sortKey = descriptor.key ?? "name"; ascending = descriptor.ascending
         if isLoading { reload(); return }
         let selection = Set(selected.map(\.path)); entries = sorted(entries); table.reloadData()
-        table.selectRowIndexes(IndexSet(entries.indices.filter { selection.contains(entries[$0].url.path) }), byExtendingSelection: false)
+        table.selectRowIndexes(rows(matching: selection), byExtendingSelection: false)
     }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard entries.indices.contains(row), let column = tableColumn else { return nil }
-        let entry = entries[row]
+        guard let column = tableColumn else { return nil }
         let cell = (tableView.makeView(withIdentifier: column.identifier, owner: self) as? NSTableCellView) ?? makeCell(column.identifier)
         let label = cell.textField!
+        if isParentRow(row) {
+            label.stringValue = column.identifier.rawValue == "name" ? ".." : ""
+            label.textColor = .labelColor
+            cell.imageView?.image = NSImage(systemSymbolName: "arrow.up", accessibilityDescription: "На уровень выше")
+            cell.imageView?.contentTintColor = .systemBlue
+            cell.toolTip = "На уровень выше: \(current.deletingLastPathComponent().path)"
+            cell.alphaValue = 1
+            return cell
+        }
+        guard let entry = entry(at: row) else { return nil }
         switch column.identifier.rawValue {
         case "name":
             label.stringValue = entry.name
@@ -453,17 +476,18 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         return cell
     }
 
-    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? { entries[row].url as NSURL }
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? { entry(at: row)?.url as NSURL? }
     func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int, proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
-        guard operation == nil else { return [] }
-        if entries.indices.contains(row), entries[row].canBrowse { tableView.setDropRow(row, dropOperation: .on) }
+        guard operation == nil, !isParentRow(row) else { return [] }
+        if entry(at: row)?.canBrowse == true { tableView.setDropRow(row, dropOperation: .on) }
         else { if isSearch { return [] }; tableView.setDropRow(-1, dropOperation: .on) }
         return NSEvent.modifierFlags.contains(.command) ? .move : .copy
     }
     func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
         let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        guard !urls.isEmpty else { return false }
-        transfer(urls, to: entries.indices.contains(row) && entries[row].canBrowse ? entries[row].url : current, move: NSEvent.modifierFlags.contains(.command)); return true
+        guard !urls.isEmpty, !isParentRow(row) else { return false }
+        let destination = entry(at: row).flatMap { $0.canBrowse ? $0.url : nil } ?? current
+        transfer(urls, to: destination, move: NSEvent.modifierFlags.contains(.command)); return true
     }
     func windowWillClose(_ notification: Notification) { captureTab(); saveTabs(); watcher?.cancel(); search?.cancel() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {

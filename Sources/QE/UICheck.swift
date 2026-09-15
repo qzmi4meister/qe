@@ -64,8 +64,49 @@ final class UICheck {
                             self.waitUntil({ !self.browser.isLoading }) {
                                 self.expect(self.browser.selected.first?.lastPathComponent == "needle.txt", "Reveal selection failed")
                                 self.browser.navigate(initial)
-                                self.waitUntil({ !self.browser.isLoading }) { self.checkWatcher(initial) }
+                                self.waitUntil({ !self.browser.isLoading }) { self.checkParentNavigation(initial) }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    func checkParentNavigation(_ initial: URL) {
+        let table = browser.table
+        expect(browser.hasParentRow, "Parent row missing")
+        table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        expect(browser.selected.isEmpty, "Parent row is treated as a file")
+        expect(browser.tableView(table, pasteboardWriterForRow: 0) == nil, "Parent row can be dragged as a file")
+        for action in [#selector(BrowserController.trashSelected(_:)), #selector(BrowserController.renameSelected(_:)), #selector(BrowserController.copyFiles(_:))] {
+            expect(!browser.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: "")), "File operation enabled for parent row")
+        }
+        browser.selectAllFiles(nil)
+        expect(!table.selectedRowIndexes.contains(0) && browser.selected.count == browser.entries.count, "Select all includes parent or misses files")
+        if let last = browser.entries.indices.last {
+            table.selectRowIndexes(IndexSet(integer: browser.row(forEntry: last)), byExtendingSelection: false)
+            let selected = browser.selected
+            table.sortDescriptors = [NSSortDescriptor(key: "name", ascending: false)]
+            expect(browser.selected == selected, "Sorting changed selected file")
+            let cell = browser.tableView(table, viewFor: table.tableColumns[0], row: 0) as? NSTableCellView
+            expect(cell?.textField?.stringValue == "..", "Sorting moved parent row")
+        }
+        browser.navigate(URL(fileURLWithPath: "/"))
+        waitUntil({ !self.browser.isLoading }) {
+            self.expect(!self.browser.hasParentRow && table.numberOfRows == self.browser.entries.count, "Parent row shown at filesystem root")
+            self.browser.navigate(initial.appendingPathComponent("Фото"))
+            self.waitUntil({ !self.browser.isLoading }) {
+                self.expect(self.browser.entries.isEmpty && table.numberOfRows == 1, "Empty directory has no parent row")
+                self.browser.selectTab(0)
+                self.waitUntil({ !self.browser.isLoading }) {
+                    self.expect(self.browser.current == initial && self.browser.hasParentRow, "First tab navigation changed")
+                    self.browser.selectTab(1)
+                    self.waitUntil({ !self.browser.isLoading }) {
+                        table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+                        self.browser.openSelected(nil)
+                        self.waitUntil({ !self.browser.isLoading }) {
+                            self.expect(self.browser.current == initial, "Parent row did not navigate up in second tab")
+                            self.checkWatcher(initial)
                         }
                     }
                 }
@@ -94,7 +135,7 @@ final class UICheck {
         }
         expect(!browser.rememberCheckbox(for: browser.current.appendingPathComponent(".hidden")).isEnabled, "Extensionless file can be associated")
         let menu = NSMenuItem(title: "", action: #selector(BrowserController.openWith(_:)), keyEquivalent: "")
-        browser.table.selectRowIndexes(IndexSet(integer: fileRow), byExtendingSelection: false)
+        browser.table.selectRowIndexes(IndexSet(integer: browser.row(forEntry: fileRow)), byExtendingSelection: false)
         expect(browser.validateMenuItem(menu), "Open with unavailable for document")
         browser.launchDocument(file, with: application, remember: false) { error in
             self.expect(error == nil, "One-time opening failed: \(String(describing: error))")
@@ -113,7 +154,7 @@ final class UICheck {
                         self.expect(self.browser.associations.application(for: file)?.url.path == application.path, "Failure replaced remembered application")
                         self.waitUntil({ !self.browser.isLoading }) {
                             if let row = self.browser.entries.firstIndex(where: { $0.url.path == file.path }) {
-                                self.browser.table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                                self.browser.table.selectRowIndexes(IndexSet(integer: self.browser.row(forEntry: row)), byExtendingSelection: false)
                                 self.browser.resetAssociation(nil)
                                 self.expect(self.browser.associations.application(for: second) == nil, "Reset did not clear extension association")
                             } else { self.failures.append("Document missing after refresh") }

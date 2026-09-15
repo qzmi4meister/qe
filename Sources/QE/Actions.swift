@@ -57,7 +57,8 @@ extension BrowserController {
         if window?.firstResponder is NSTextView,
            [#selector(cutFiles(_:)), #selector(copyFiles(_:)), #selector(pasteFiles(_:)), #selector(selectAllFiles(_:))].contains(action) { return true }
         if action == #selector(selectAllFiles(_:)) { return !entries.isEmpty }
-        if action == #selector(copyFiles(_:)) || action == #selector(openSelected(_:)) { return !selected.isEmpty }
+        if action == #selector(openSelected(_:)) { return parentSelected || !selected.isEmpty }
+        if action == #selector(copyFiles(_:)) { return !selected.isEmpty }
         if action == #selector(openWith(_:)) { return selected.count == 1 && isDocument(selected[0]) }
         if action == #selector(resetAssociation(_:)) {
             let file = selected.count == 1 ? selected.first : nil
@@ -134,6 +135,7 @@ extension BrowserController {
     }
     func canBrowse(_ url: URL) -> Bool { (try? FileEntry(url: url.resolvingSymlinksInPath()).canBrowse) == true }
     @objc func openSelected(_ sender: Any?) {
+        if parentSelected { up(); return }
         let urls = selected
         if urls.count == 1 && canBrowse(urls[0]) { navigate(urls[0]); return }
         for url in urls {
@@ -185,7 +187,8 @@ extension BrowserController {
         transfer(urls, to: current, move: move)
     }
     @objc func selectAllFiles(_ sender: Any?) {
-        if let editor = window?.firstResponder as? NSTextView { editor.selectAll(sender) } else { table.selectAll(sender) }
+        if let editor = window?.firstResponder as? NSTextView { editor.selectAll(sender) }
+        else { table.selectRowIndexes(IndexSet(integersIn: row(forEntry: 0)..<numberOfRows(in: table)), byExtendingSelection: false) }
     }
     @objc func copyTo(_ sender: Any?) {
         let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Копировать в папку") else { return }
