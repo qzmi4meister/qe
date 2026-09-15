@@ -13,14 +13,14 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Check file operations and UI
         run: ./scripts/check.sh
       - name: Build release archive
         run: ./scripts/release.sh
       - name: Upload check reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: ui-check
           path: .build/ui-check/
