@@ -53,7 +53,7 @@ public enum Files {
 
     public static func named(_ name: String, in parent: URL) throws -> URL {
         guard !name.isEmpty, name != ".", name != "..", !name.contains("/"), !name.contains("\0") else {
-            throw FileProblem.message("Введите имя без / и нулевого символа. Имена «.» и «..» недопустимы.")
+            throw FileProblem.message("Enter a name without / or a null character. The names “.” and “..” are not allowed.")
         }
         return parent.appendingPathComponent(name)
     }
@@ -94,7 +94,7 @@ public enum Files {
         if !hidden { options.insert(.skipsHiddenFiles) }
         guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: FileEntry.keys,
             options: options, errorHandler: { _, _ in unreadable += 1; return !cancellation.isCancelled }) else {
-            throw FileProblem.message("Не удалось прочитать папку для поиска.")
+            throw FileProblem.message("The folder could not be read for search.")
         }
         var found: [FileEntry] = []
         var lastDelivery = Date()
@@ -135,7 +135,7 @@ public enum Files {
             guard lstat(source.path, &a) == 0, lstat(target.path, &b) == 0,
                   a.st_dev == b.st_dev, a.st_ino == b.st_ino,
                   source.lastPathComponent.lowercased() == name.lowercased() else {
-                throw FileProblem.message("Элемент «\(name)» уже существует.")
+                throw FileProblem.message("An item named “\(name)” already exists.")
             }
             guard Darwin.rename(source.path, target.path) == 0 else {
                 throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
@@ -163,7 +163,7 @@ public enum Files {
         let resolvedSource = source.resolvingSymlinksInPath().standardizedFileURL
         if sourceEntry.isDirectory && !sourceEntry.isLink &&
             (resolvedParent.path == resolvedSource.path || resolvedParent.path.hasPrefix(resolvedSource.path + "/")) {
-            throw FileProblem.message("Нельзя поместить папку внутрь самой себя.")
+            throw FileProblem.message("A folder cannot be placed inside itself.")
         }
         var target = directory.appendingPathComponent(source.lastPathComponent)
         var replace = false
@@ -176,7 +176,7 @@ public enum Files {
             }
         }
         if target.resolvingSymlinksInPath().standardizedFileURL.path == resolvedSource.path {
-            throw FileProblem.message("Источник и назначение совпадают. Выберите «Сохранить оба» для создания копии.")
+            throw FileProblem.message("The source and destination are the same. Choose “Keep Both” to make a copy.")
         }
         try cancellation.check()
         let staging = directory.appendingPathComponent(".qe-copy-" + UUID().uuidString)
@@ -213,24 +213,24 @@ public enum Files {
             var recovery: [String] = []
             if backedUp {
                 do { try fm.moveItem(at: backup, to: target) }
-                catch { recovery.append("Предыдущая версия сохранена: \(backup.path)") }
+                catch { recovery.append("Previous version preserved at: \(backup.path)") }
             }
             if stageContainsSource {
                 do { try fm.moveItem(at: staging, to: source); stageContainsSource = false }
-                catch { recovery.append("Исходник сохранён: \(staging.path)") }
+                catch { recovery.append("Source preserved at: \(staging.path)") }
             }
             if !recovery.isEmpty { throw FileProblem.message(error.localizedDescription + "\n" + recovery.joined(separator: "\n")) }
             throw error
         }
         if backedUp {
             do { try fm.removeItem(at: backup) }
-            catch { throw FileProblem.message("Копия готова. Предыдущая версия осталась в \(backup.path): \(error.localizedDescription)") }
+            catch { throw FileProblem.message("Copy complete. The previous version remains at \(backup.path): \(error.localizedDescription)") }
         }
         if committed && move && !sameVolume {
             // Cancellation after commit leaves two copies; it must not remove the source.
-            if cancellation.isCancelled { throw FileProblem.message("Копия готова: \(target.path). Перенос отменён; исходник сохранён.") }
+            if cancellation.isCancelled { throw FileProblem.message("Copy complete: \(target.path). Move cancelled; the source was preserved.") }
             do { try fm.removeItem(at: source) }
-            catch { throw FileProblem.message("Копия готова: \(target.path). Не удалось удалить исходник: \(error.localizedDescription)") }
+            catch { throw FileProblem.message("Copy complete: \(target.path). Could not remove the source: \(error.localizedDescription)") }
         }
         return target
     }

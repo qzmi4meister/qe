@@ -33,24 +33,24 @@ public enum Archives {
         lock.unlock()
         try cancellation.check()
         guard process.terminationStatus == 0 else {
-            throw FileProblem.message("Архиватор не смог завершить операцию. Архив может быть повреждён, защищён паролем или недоступен.\n" + message)
+            throw FileProblem.message("The archive operation failed. The archive may be corrupt, password-protected, or inaccessible.\n" + message)
         }
     }
 
     public static func create(_ sources: [URL], at destination: URL, format: String, cancellation: Cancellation) throws {
-        guard ["zip", "7z"].contains(format), !sources.isEmpty else { throw FileProblem.message("Выберите файлы и формат ZIP или 7z.") }
-        guard !Files.exists(destination) else { throw FileProblem.message("Архив с таким именем уже существует.") }
+        guard ["zip", "7z"].contains(format), !sources.isEmpty else { throw FileProblem.message("Select files and choose ZIP or 7z.") }
+        guard !Files.exists(destination) else { throw FileProblem.message("An archive with this name already exists.") }
         let selected = Files.topLevelSelection(sources)
         let parent = selected[0].deletingLastPathComponent()
         guard selected.allSatisfy({ $0.deletingLastPathComponent().path == parent.path }) else {
-            throw FileProblem.message("Для одного архива выберите элементы из одной папки.")
+            throw FileProblem.message("Select items from the same folder to create an archive.")
         }
         let resolvedDestination = destination.deletingLastPathComponent().resolvingSymlinksInPath().path
         for source in selected {
             let entry = try FileEntry(url: source)
             let resolved = source.resolvingSymlinksInPath().path
             if entry.isDirectory && !entry.isLink && (resolvedDestination == resolved || resolvedDestination.hasPrefix(resolved + "/")) {
-                throw FileProblem.message("Сохраните архив за пределами папки, которую архивируете.")
+                throw FileProblem.message("Save the archive outside the folder being archived.")
             }
         }
         let temporary = destination.deletingLastPathComponent().appendingPathComponent(".qe-archive-" + UUID().uuidString)
@@ -64,9 +64,9 @@ public enum Archives {
 
     public static func extract(_ archive: URL, to destination: URL, cancellation: Cancellation) throws {
         guard ["zip", "7z"].contains(archive.pathExtension.lowercased()) else {
-            throw FileProblem.message("Поддерживаются архивы ZIP и 7z.")
+            throw FileProblem.message("ZIP and 7z archives are supported.")
         }
-        guard !Files.exists(destination) else { throw FileProblem.message("Папка назначения уже существует. Выберите новое имя.") }
+        guard !Files.exists(destination) else { throw FileProblem.message("The destination folder already exists. Choose a different name.") }
         let temporary = destination.deletingLastPathComponent().appendingPathComponent(".qe-extract-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false,
             attributes: [.posixPermissions: 0o700])

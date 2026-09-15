@@ -1,11 +1,11 @@
-# Иконка QE
+# QE icon
 
-`AppIcon-fullbleed.png` — иконка для сборки: синие строчные буквы **qe** на графитовом фоне до краёв изображения. `AppIcon.png` — первоначальный вариант с прозрачным полем. Оба созданы встроенным ImageGen. `scripts/build.sh` получает из варианта fullbleed стандартные размеры 16–1024 пикселей и упаковывает их в `QE.app/Contents/Resources/AppIcon.icns`.
+`AppIcon-fullbleed.png` is the build source: a blue lowercase **qe** monogram on an opaque graphite background extending to every edge. `AppIcon.png` is the original version with a transparent margin. Both were created with ImageGen. `scripts/build.sh` generates sizes from 16 to 1024 pixels from the full-bleed version and packs them into `QE.app/Contents/Resources/AppIcon.icns`.
 
-## Промпт
+## Original prompt
 
 Use case: logo-brand. Asset type: production macOS application icon, square 1024x1024 PNG. Create one polished minimal icon for a lightweight file manager named qe. Text exactly: "qe" (two lowercase Latin letters, q and e). The entire mark is just this bold custom geometric monogram, with generously open counters, shared visual rhythm, softly rounded terminals and a distinctive short diagonal tail on the q. Keep both letters clearly readable at 32 pixels; no tiny details. Center the monogram on a single dark graphite rounded-square macOS-style tile with modest corner radius and even transparent margin around the tile. The monogram uses one vibrant cool accent color contrasting strongly with the dark tile. Flat, restrained desktop utility aesthetic, subtle tonal depth in tile only. Front facing, perfectly square, no perspective, no scene, no mockup, no additional objects, no folder pictogram, no border, no extra text, no watermark. Outside the rounded tile must be genuinely transparent alpha, not white, not checkerboard. Fill most of the tile with the balanced qe lettering while leaving comfortable internal padding.
 
-## Правка для системной маски macOS
+## Edit for the macOS system mask
 
 Edit this existing qe application icon. Preserve the exact blue lowercase qe monogram, letter shapes, relative spacing, and graphite material. Change only the tile/background geometry for a macOS app icon source: the dark graphite background must now extend completely edge-to-edge across the entire square canvas, including every corner, fully opaque, with no transparent margins, no rounded outer silhouette, no outer border and no white space. Enlarge the existing qe monogram proportionally to occupy about 70% of the total canvas width, centered optically. The output is a full-bleed flat square icon asset: macOS itself will apply its rounded mask. No new objects, text, decorations or mockup. Do not draw an additional rounded square inside the image.

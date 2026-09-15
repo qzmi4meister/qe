@@ -1,40 +1,40 @@
 # QE
 
-Компактный файловый менеджер для macOS 26 на Apple Silicon. Одна панель с вкладками, папки и диски слева, файловые операции под рукой.
+A lightweight native file manager for macOS 26 and Apple Silicon. One pane with tabs, a sidebar for folders and disks, and direct access to file operations.
 
-## Установка через Homebrew
+## Install with Homebrew
 
-Требуются **macOS 26 или новее** и **Apple Silicon (M1 и новее)**. Интерфейс на русском языке.
+Requires **macOS 26 or later** and **Apple Silicon (M1 or later)**. The interface is English only.
 
 ```sh
 brew install --cask qzmi4meister/tap/qe
 open -a QE
 ```
 
-Homebrew скачивает готовое приложение; Xcode, Swift и дополнительные зависимости для установки не нужны.
+Homebrew installs a prebuilt application. Xcode, Swift, and additional runtime dependencies are not required.
 
-Релиз подписан ad-hoc и не нотарифицирован Apple. Если macOS блокирует запуск и вы доверяете этой сборке, после попытки открытия перейдите в **Системные настройки → Конфиденциальность и безопасность → Всё равно открыть**. Подробности — в [инструкции Apple](https://support.apple.com/en-us/102445).
+The release is signed ad hoc and is not notarized by Apple. If macOS blocks the first launch and you trust this build, try opening it, then go to **System Settings → Privacy & Security → Open Anyway**. See [Apple's instructions](https://support.apple.com/en-us/102445).
 
-Обновление:
+Update:
 
 ```sh
 brew update
 brew upgrade --cask qzmi4meister/tap/qe
 ```
 
-Удаление приложения:
+Uninstall:
 
 ```sh
 brew uninstall --cask qzmi4meister/tap/qe
 ```
 
-Настройки, вкладки и ассоциации QE при обычном удалении сохраняются. Для удаления вместе с настройками используйте `brew uninstall --cask --zap qzmi4meister/tap/qe`. Пользовательские файлы не удаляются.
+Normal uninstall preserves preferences, saved tabs, and file associations. To remove those as well, use `brew uninstall --cask --zap qzmi4meister/tap/qe`. User files are not removed.
 
-ZIP для ручной установки и `SHA256SUMS` доступны в [Releases](https://github.com/qzmi4meister/qe/releases). Распакуйте ZIP и перенесите `QE.app` в «Программы».
+A ZIP for manual installation and `SHA256SUMS` are available in [Releases](https://github.com/qzmi4meister/qe/releases). Extract the ZIP and move `QE.app` to Applications.
 
-## Сборка из исходников
+## Build from source
 
-На Mac с Apple Silicon и macOS 26 установите Apple Command Line Tools с SDK macOS 26 и Swift 6.2 или новее. Полный Xcode и сторонние библиотеки не требуются.
+Use an Apple Silicon Mac with macOS 26 and Apple Command Line Tools containing the macOS 26 SDK and Swift 6.2 or later. Full Xcode and third-party libraries are not required.
 
 ```sh
 git clone https://github.com/qzmi4meister/qe.git
@@ -43,80 +43,81 @@ cd qe
 open dist/QE.app
 ```
 
-Перед пересборкой закройте локально запущенный `dist/QE.app`. Версия приложения задаётся в файле `VERSION`.
+Quit the local `dist/QE.app` before rebuilding it. The application version is set in `VERSION`.
 
-## Работа с файлами
+## Working with files
 
-- **Новая папка / Новый файл** — кнопки над списком. Файл создаётся пустым, имя и расширение задаются целиком.
-- **Путь** — редактируется в верхней строке. Кнопка справа копирует текущий путь; контекстное меню копирует пути выделенных элементов.
-- **Вкладки** — кнопка «+», закрытие крестиком. Открытые пути восстанавливаются при запуске.
-- **На уровень выше** — двойной щелчок по строке `..` в начале списка. Она остаётся сверху при сортировке и не участвует в файловых операциях. В корне файловой системы и результатах поиска строка не показывается.
-- **Скрытые** — включены с первого запуска; выбор сохраняется.
-- **Копировать / Вырезать / Вставить**, **Копировать в… / Переместить в…**, переименование и корзина — в меню правой кнопки мыши.
-- **Перетаскивание** в папку или на вкладку копирует файлы. С зажатой ⌘ — перемещает.
-- **Поиск** — введите часть имени и нажмите Enter. Поиск включает подпапки; крестик в поле возвращает обычный список. «Перейти к файлу» открывает его папку и выделяет результат.
-- **ZIP / 7z** — создание и распаковка через контекстное меню. Распаковка создаёт отдельную папку; исходный архив остаётся на месте.
-- **Открыть с помощью…** — выберите программу из списка или нажмите «Другое…». Флажок «Всегда открывать .txt в QE этим приложением» сохраняет выбор для расширения. Двойной щелчок и команда «Открыть» затем используют это приложение.
-- **Сбросить приложение для .txt** — возвращает системный выбор для выбранного расширения. Ассоциации действуют внутри QE и сохраняются между запусками. `.TXT` и `.txt` считаются одним расширением; файлы без расширения можно открыть разово.
-- **Внешние диски** появляются слева. Кнопка извлечения становится доступна для извлекаемого носителя.
+- **New Folder / New File** are above the file list. New files are empty; enter any valid name and extension.
+- **Dates** use `dd.MM.yyyy` and 24-hour `HH:mm` time in your local time zone.
+- **Path** is editable at the top of the window. The button beside it copies the current path; the context menu copies paths of selected items.
+- **Tabs** open with the **+** button and close with the cross inside each tab. The active tab is blue. Open paths are restored at launch.
+- **Go Up**: double-click the `..` row at the top of the list. It stays above files when sorting and is excluded from file operations. It is hidden at the filesystem root and in search results.
+- **Hidden Files** are shown on first launch. Your choice is saved.
+- **Copy / Cut / Paste**, **Copy To… / Move To…**, **Rename**, and **Move to Trash** are in the context menu.
+- **Drag and drop** into a folder or onto a tab copies files. Hold ⌘ to move them.
+- **Search**: enter part of a name and press Return. Search includes subfolders; clearing the field returns to the directory listing. **Show in Folder** opens a result's parent folder and selects the item.
+- **ZIP / 7z**: create and extract archives through the context menu. Extraction creates a separate folder and preserves the archive.
+- **Open With…**: choose an application from the list or click **Other…**. Select **Always open .txt files in QE with this application** to save a choice for that extension. Double-clicking or choosing **Open** then uses that application.
+- **Reset Application for .txt** restores the system default for that extension. Associations apply within QE and persist between launches. `.TXT` and `.txt` are equivalent; files without an extension can be opened with an application once.
+- **External disks** appear in the sidebar. Removable volumes have an eject button.
 
-При совпадении имён можно сохранить оба элемента, пропустить или заменить. Замена папки заменяет её целиком. Обычное удаление отправляет элементы в корзину.
+When names conflict, choose **Keep Both**, **Skip**, or **Replace**. Replacing a folder replaces it entirely; folders are not merged. Normal deletion sends items to Trash.
 
-### Клавиатура
+### Keyboard shortcuts
 
-| Действие | Клавиши |
+| Action | Shortcut |
 | --- | --- |
-| Новая папка | ⌘⇧N |
-| Новый файл | ⌘N |
-| Новая / закрыть вкладку | ⌘T / ⌘W |
-| Перейти к пути | ⌘L |
-| Поиск по именам | ⌘F |
-| Копировать путь | ⌘⌥C |
-| Скрытые файлы | ⌘⇧. |
-| Обновить | ⌘R |
-| Открыть / вверх | ⌘↓ / ⌘↑ |
-| Переименовать | Enter |
-| В корзину | ⌘⌫ |
+| New folder | ⌘⇧N |
+| New file | ⌘N |
+| New / close tab | ⌘T / ⌘W |
+| Go to path | ⌘L |
+| Search by name | ⌘F |
+| Copy path | ⌘⌥C |
+| Show hidden files | ⌘⇧. |
+| Refresh | ⌘R |
+| Open / go up | ⌘↓ / ⌘↑ |
+| Rename | Return |
+| Move to Trash | ⌘⌫ |
 
-## Ограничения первой сборки
+## Limitations
 
-- Отмена копирования проверяется между элементами. Один большой файл может сначала закончить копироваться; временная копия затем убирается.
-- Архивы без паролей и деления на тома. Для создания одного архива выбирайте элементы из одной папки.
-- Расширение пустого файла не создаёт структуру Word, Excel или другого формата.
-- Поиск не читает содержимое файлов, не обходит пакеты приложений и не следует по символьным ссылкам.
-- Общего отката операции нет. При отмене уже завершённые элементы остаются обработанными.
+- Copy cancellation is checked between items. A single large file may finish copying first; its temporary copy is then removed.
+- Password-protected and multipart archives are not supported. Select items from the same folder when creating an archive.
+- Giving an empty file an extension does not create a Word document, spreadsheet, or other structured format.
+- Search matches names, does not inspect file contents or application bundles, and does not follow symbolic links.
+- There is no general undo. Cancelling an operation leaves completed items in place.
 
-## Проверки
+## Checks
 
 ```sh
 ./scripts/check.sh
 ```
 
-Проверяются файловые операции, конфликты, отмена, восстановление исходника после сбоя замены, корзина, поиск, ZIP/7z, защита распаковки и ассоциации расширений. Затем приложение запускается с временными данными: проверяются вкладки, навигация, скрытые файлы, поиск, выделение результата и обновление каталога. Временное приложение-получатель проверяет разовое открытие, запоминание, повторное открытие по расширению и сохранение прежнего выбора при ошибке запуска. Отчёт и снимки окон сохраняются в `.build/ui-check/`.
+Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. The application then runs with temporary data to check tabs, parent navigation, hidden files, search, selection, and directory updates. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
 
-Для измерения чтения и сортировки 10 000 элементов:
+To measure reading and sorting 10,000 items:
 
 ```sh
 ./scripts/check.sh --benchmark
 ```
 
-Дополнительные проверки `QEChecks --volume <путь>` требуют отдельного пустого тестового тома на 32 МиБ: тест намеренно создаёт файл на 48 МиБ и проверяет нехватку места. `--readonly-volume <путь>` проверяет отказ записи. Обычный запуск проверок не создаёт и не подключает образы дисков.
+Additional `QEChecks --volume <path>` checks require a separate empty 32 MiB test volume: the test deliberately writes a 48 MiB file to check disk-full handling. `--readonly-volume <path>` checks write rejection. Normal checks do not create or mount disk images.
 
-## Устройство проекта
+## Project structure
 
-- `Sources/QE` — окно AppKit, вкладки, меню, фоновые задания и проверка интерфейса.
-- `Sources/QECore` — чтение каталогов, поиск, файловые операции и архивы.
-- `Tests/QECoreTests` — самостоятельный проверочный исполняемый файл. Работает с Command Line Tools без XCTest.
-- [DESIGN.md](DESIGN.md) — требования и проектные решения.
+- `Sources/QE`: AppKit window, tabs, menus, background tasks, and UI checks.
+- `Sources/QECore`: directory reads, search, file operations, and archives.
+- `Tests/QECoreTests`: a standalone check executable that works with Command Line Tools without XCTest.
+- [QA.md](QA.md): verification results and known limits.
 
-Архивы обрабатывает системный `bsdtar`. Приложение не запускает shell, не устанавливает фоновые службы и не строит индекс диска.
+Archives use the system `bsdtar`. QE does not invoke a shell, install background services, or build a disk index. English is the only application language; there is no language selector or translation catalog.
 
-## Разработка и релизы
+## Contributing and releases
 
-Ошибки и предложения: [GitHub Issues](https://github.com/qzmi4meister/qe/issues). Для ошибки с файлами приложите минимальный пример на тестовых данных, версию macOS и ожидаемый результат. Перед pull request запустите `./scripts/check.sh`.
+Report bugs and suggestions in [GitHub Issues](https://github.com/qzmi4meister/qe/issues). For a file-operation bug, include a minimal example using test data, your macOS version, and the expected result. Run `./scripts/check.sh` before submitting a pull request.
 
-[RELEASING.md](RELEASING.md) описывает сборку ZIP, публикацию через `gh` и обновление Homebrew tap. GitHub Actions запускает проверки и сборку на macOS 26.
+[RELEASING.md](RELEASING.md) covers ZIP packaging, publication with `gh`, and Homebrew tap updates. GitHub Actions runs the checks and release build on macOS 26.
 
-## Лицензия
+## License
 
-[MIT](LICENSE), © 2026 qzmi4meister. Текст лицензии также включён в приложение. Происхождение иконки описано в [Resources/README.md](Resources/README.md).
+[MIT](LICENSE), © 2026 qzmi4meister. The license is also included in the application. Icon provenance is documented in [Resources/README.md](Resources/README.md).

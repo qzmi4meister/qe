@@ -37,6 +37,10 @@ final class UICheck {
         waitUntil({ !self.browser.isLoading }) {
             self.firstListSeconds = Date().timeIntervalSince(self.started)
             let initial = self.browser.current
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = self.browser.dateFormatter.timeZone
+            let date = calendar.date(from: DateComponents(year: 2026, month: 9, day: 15, hour: 21, minute: 5))!
+            self.expect(self.browser.dateFormatter.string(from: date) == "15.09.2026 21:05", "Date format must use dd.MM.yyyy and 24-hour time")
             self.expect(self.browser.lastReadError == nil, "Initial directory could not load")
             self.expect(self.browser.entries.contains { $0.name == ".hidden" }, "Hidden files not shown initially")
             self.expect(self.browser.table.frame.width > 400 && self.browser.table.visibleRect.height > 150, "Table layout too small")
@@ -49,7 +53,7 @@ final class UICheck {
             self.waitUntil({ !self.browser.isLoading }) {
                 self.expect(self.browser.entries.count < count, "Hidden toggle failed")
                 self.browser.toggleHidden(nil)
-                self.browser.navigate(initial.appendingPathComponent("Проекты"))
+                self.browser.navigate(initial.appendingPathComponent("Projects"))
                 self.waitUntil({ !self.browser.isLoading }) {
                     self.expect(self.browser.entries.contains { $0.name == "needle.txt" }, "Navigation failed")
                     self.browser.history(-1)
@@ -94,7 +98,7 @@ final class UICheck {
         browser.navigate(URL(fileURLWithPath: "/"))
         waitUntil({ !self.browser.isLoading }) {
             self.expect(!self.browser.hasParentRow && table.numberOfRows == self.browser.entries.count, "Parent row shown at filesystem root")
-            self.browser.navigate(initial.appendingPathComponent("Фото"))
+            self.browser.navigate(initial.appendingPathComponent("Photos"))
             self.waitUntil({ !self.browser.isLoading }) {
                 self.expect(self.browser.entries.isEmpty && table.numberOfRows == 1, "Empty directory has no parent row")
                 self.browser.selectTab(0)
@@ -124,7 +128,7 @@ final class UICheck {
     func checkOpening() {
         guard let index = CommandLine.arguments.firstIndex(of: "--open-check-app"), CommandLine.arguments.indices.contains(index + 1) else { finish(); return }
         let application = URL(fileURLWithPath: CommandLine.arguments[index + 1])
-        guard let fileRow = browser.entries.firstIndex(where: { $0.name == "Список покупок.txt" }) else {
+        guard let fileRow = browser.entries.firstIndex(where: { $0.name == "Shopping List.txt" }) else {
             failures.append("Opening fixture missing in \(browser.current.path): \(browser.entries.map(\.name))"); finish(); return
         }
         let file = browser.entries[fileRow].url
@@ -175,7 +179,7 @@ final class UICheck {
             func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
             let controls = descendants(view)
             self.expect(controls.contains { ($0 as? NSPopUpButton)?.numberOfItems ?? 0 > 0 }, "Application list is empty")
-            self.expect(controls.contains { ($0 as? NSButton)?.title.hasPrefix("Всегда открывать .txt") == true && $0.frame.height > 0 }, "Remember checkbox is missing")
+            self.expect(controls.contains { ($0 as? NSButton)?.title.hasPrefix("Always open .txt") == true && $0.frame.height > 0 }, "Remember checkbox is missing")
             do {
                 try FileManager.default.createDirectory(at: self.output, withIntermediateDirectories: true)
                 if let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {

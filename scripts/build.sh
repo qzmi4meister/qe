@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")/.."
 version=$(cat VERSION)
 if ! printf '%s\n' "$version" | /usr/bin/grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-    printf 'VERSION должен содержать версию вида 0.2.1.\n' >&2
+    printf 'VERSION must contain a version such as 0.3.0.\n' >&2
     exit 1
 fi
 swift build -c release --arch arm64 --product QE
@@ -28,6 +28,8 @@ cat > "$app_dir/Contents/Info.plist" <<PLIST
 <key>CFBundleIdentifier</key><string>local.qe.files</string>
 <key>CFBundleName</key><string>QE</string>
 <key>CFBundleDisplayName</key><string>QE</string>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array><string>en</string></array>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>$version</string>
@@ -39,4 +41,4 @@ cat > "$app_dir/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 codesign --force --sign - "$app_dir"
-printf 'Готово: %s\n' "$app_dir"
+printf 'Built: %s\n' "$app_dir"

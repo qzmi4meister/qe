@@ -15,7 +15,7 @@ final class FileTests {
     }
 
     func testCreateRenameHiddenAndNoOverwrite() throws {
-        let url = try file(".тест файл")
+        let url = try file(".test file")
         expectError(try Files.create(name: url.lastPathComponent, in: root, directory: false))
         expectEqual(try Data(contentsOf: url), Data("original".utf8))
         expectEqual(try Files.list(root, hidden: false).count, 0)
@@ -25,7 +25,7 @@ final class FileTests {
         for invalid in ["", ".", "..", "a/b", "a\0b"] {
             expectError(try Files.create(name: invalid, in: root, directory: false))
         }
-        let empty = try Files.create(name: "без расширения", in: root, directory: false)
+        let empty = try Files.create(name: "no extension", in: root, directory: false)
         expectEqual(try Data(contentsOf: empty).count, 0)
     }
 
@@ -143,7 +143,7 @@ final class FileTests {
 
     func testArchiveRoundTripAndLiteralNames() throws {
         let source = try folder("source")
-        let names = ["тест с пробелом.txt", ".hidden", "-option", "@archive", "line\nbreak", "empty"]
+        let names = ["café with spaces.txt", ".hidden", "-option", "@archive", "line\nbreak", "empty"]
         let urls = try names.map { try file($0, in: source, data: $0 == "empty" ? Data() : Data($0.utf8)) }
         for format in ["zip", "7z"] {
             let archive = root.appendingPathComponent("test." + format)

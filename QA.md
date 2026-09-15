@@ -1,43 +1,52 @@
-# Проверка QE 0.2.1
+# QE 0.3.0 verification
 
-Среда: macOS 26.5.1, arm64, Swift 6.3.2. Проверено 15 сентября 2026 года. Проверки перед первым публичным выпуском; прежние измерения явно помечены версией.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 15.09.2026. Historical measurements and volume checks are identified separately below.
 
-## Результаты
+## Current checks
 
-| Проверка | Результат |
+| Check | Result |
 | --- | --- |
-| Сборка самостоятельного arm64 `.app` | Прошла |
-| Проверка локальной подписи `codesign --verify --strict` | Прошла |
-| 13 сценариев файловой логики и настроек | Без ошибок |
-| Ассоциации расширений | Сохранение, регистр расширения, замена, сброс и исключение файлов без расширения проверены |
-| Открытие через выбранное приложение | Временный получатель подтвердил разовое открытие, открытие с запоминанием и автоматическое открытие следующего `.TXT`; ошибка запуска не изменила сохранённый выбор |
-| Вкладки, навигация, скрытые файлы, поиск, переход к результату, обновление каталога | Без ошибок в отладочной и release-сборках |
-| Строка `..` | Переход вверх, пустая папка, корень диска, переключение вкладок и сортировка проверены; копирование, переименование и удаление родительской строки недоступны |
-| Перенос между разными томами | Прошёл на отдельном образе HFS+ |
-| Нехватка места при переносе с заменой | Исходник и прежний файл назначения сохранились |
-| Запись на том только для чтения | Отказ без удаления исходника |
-| ZIP и 7z | Создание и распаковка с проверкой содержимого; Unicode, пробелы, скрытые/пустые файлы, имена с `-`, `@` и переводом строки |
-| Архив с `..`, абсолютным путём или записью через символическую ссылку | Записей вне папки распаковки не возникло |
-| Корзина | Временный файл найден в корзине с прежним содержимым |
+| Standalone arm64 application build | Passed |
+| Ad-hoc signature verification with `codesign --verify --strict` | Passed |
+| 13 file-operation and settings scenarios | No failures |
+| Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
+| Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
+| Tabs, navigation, hidden files, search, revealing results, directory updates | No failures |
+| Parent row (`..`) | Navigation, empty directories, filesystem root, tab switching, and sorting checked; copy, rename, and Trash actions unavailable for the parent row |
+| Date and time | Fixed `dd.MM.yyyy HH:mm` format, including a 24-hour afternoon time |
+| English interface | Labels, menus, tooltips, errors, fixtures, and scripts translated; the application declares English as its only supported language |
+| ZIP and 7z | Creation and extraction with content checks; Unicode, spaces, hidden and empty files, and names containing `-`, `@`, or a newline |
+| Archives with `..`, absolute paths, or traversal through symbolic links | No writes outside the extraction directory |
+| Trash | Temporary file found in Trash with its contents preserved |
 
-## Ресурсы и отзывчивость
+## Earlier volume checks
 
-Разовые локальные измерения базовой версии 0.1.0, не обещание для любых дисков и каталогов:
+These checks were performed before the first public release on disposable HFS+ disk images. They were not repeated for the interface translation.
 
-- Размер `.app` на диске после добавления иконки: около **2,1 МиБ** (до добавления — 548 КиБ).
-- Обычное окно с одной вкладкой: **39 МБ physical footprint**, пик 41 МБ по системной утилите `footprint`.
-- RSS того же процесса: около **112 МиБ**. RSS учитывает также резидентные отображения и отличается от physical footprint; эти показатели нельзя смешивать.
-- В двух замерах с интервалом 3 секунды CPU был **0,0%**, накопленное процессорное время не изменилось.
-- Чтение метаданных и сортировка **10 000 файлов — 0,43 с** в отладочной сборке.
-- В проверке настоящего окна с 10 000 файлами первый список появился через **0,55 с после настройки окна**. Сам запуск процесса в этот показатель не входит.
-- Во время навигации и поиска по большому каталогу максимальный интервал между запланированными событиями главного потока составил **0,083 с**. Измерение использовало таймер с интервалом 0,02 с только в режиме проверки.
+| Check | Result |
+| --- | --- |
+| Moving between volumes | Passed |
+| Disk full during a move with replacement | Source and previous destination preserved |
+| Writing to a read-only volume | Rejected without removing the source |
 
-## Практические ограничения
+## Resource use and responsiveness
 
-- Физическую флешку или внешний HDD не отключали во время записи. Проверки отдельных томов проводились на временном образе диска.
-- Отмена большого одиночного файла может ждать окончания его копирования. Завершённые элементы общей операции не откатываются.
-- Архивы с паролями, многотомные архивы и работа внутри архива не входят в первую сборку. Совместимость со всеми вариантами метаданных сторонних архиваторов не подтверждена.
-- Проверки интерфейса обращаются к настоящим контроллерам AppKit. Полный ручной проход мышью, включая перетаскивание между приложениями, ещё не выполнен.
-- Релиз имеет ad-hoc подпись и не нотарифицирован Apple. При первом запуске загруженной сборки macOS может потребовать разрешение через «Конфиденциальность и безопасность».
+One-time local measurements of the 0.1.0 baseline, not guarantees for every disk or directory:
 
-Повторный запуск основных проверок: `./scripts/check.sh`. Снимок представления и машинный отчёт находятся в `.build/ui-check/`, проверка большого каталога — в `.build/large-ui-check/`.
+- Application size after adding the icon: about **2.1 MiB** (548 KiB before the icon).
+- A normal window with one tab: **39 MB physical footprint**, peaking at 41 MB according to the system `footprint` utility.
+- RSS for the same process: about **112 MiB**. RSS also includes resident mappings and is not interchangeable with physical footprint.
+- Two samples three seconds apart showed **0.0% CPU**, with no increase in accumulated CPU time.
+- Reading metadata and sorting **10,000 files took 0.43 seconds** in a debug build.
+- In the real-window check with 10,000 files, the first list appeared **0.55 seconds after window setup**. This excludes process startup time.
+- During navigation and search in the large directory, the longest gap between scheduled main-thread events was **0.083 seconds**. The measurement used a 0.02-second timer in check mode only.
+
+## Practical limits
+
+- A physical USB drive or external HDD was not disconnected during a write. Volume checks used disposable disk images.
+- Cancelling a single large file can wait for that file's copy to finish. Completed items are not rolled back.
+- Password-protected archives, multipart archives, and browsing inside archives are unsupported. Compatibility with every metadata variant from other archivers has not been established.
+- UI checks call the real AppKit controllers. A full manual mouse pass, including dragging between applications, has not been completed.
+- Releases are signed ad hoc and are not notarized by Apple. macOS may require first-launch approval in Privacy & Security.
+
+Run the main checks with `./scripts/check.sh`. Window images and the machine-readable report are in `.build/ui-check/`; historical large-directory results are in `.build/large-ui-check/`.

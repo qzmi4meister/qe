@@ -12,10 +12,10 @@ import uuid
 
 with tempfile.TemporaryDirectory(prefix='qe-ui-') as temporary:
     root = Path(temporary)
-    for name in ['Проекты', 'Документы', 'Фото']:
+    for name in ['Projects', 'Documents', 'Photos']:
         (root / name).mkdir()
-    (root / 'Проекты' / 'needle.txt').write_text('Search fixture\n')
-    for name in ['Заметки.md', 'Список покупок.txt', '.hidden']:
+    (root / 'Projects' / 'needle.txt').write_text('Search fixture\n')
+    for name in ['Notes.md', 'Shopping List.txt', '.hidden']:
         (root / name).write_text('UI fixture\n')
     receiver = root / 'OpenReceiver.app'
     executable = receiver / 'Contents' / 'MacOS' / 'OpenReceiver'

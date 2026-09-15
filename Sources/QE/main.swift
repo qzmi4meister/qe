@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 struct QuitProblem: LocalizedError {
-    var errorDescription: String? { "Дождитесь завершения операции или отмените её перед выходом." }
+    var errorDescription: String? { "Wait for the operation to finish or cancel it before quitting." }
 }
 
 let app = NSApplication.shared

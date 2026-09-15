@@ -60,7 +60,11 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         IndexSet(entries.indices.filter { paths.contains(entries[$0].url.path) }.map { row(forEntry: $0) })
     }
     let dateFormatter: DateFormatter = {
-        let value = DateFormatter(); value.locale = Locale(identifier: "ru_RU"); value.dateStyle = .short; value.timeStyle = .short; return value
+        let value = DateFormatter()
+        value.locale = Locale(identifier: "en_US_POSIX")
+        value.calendar = Calendar(identifier: .gregorian)
+        value.dateFormat = "dd.MM.yyyy HH:mm"
+        return value
     }()
 
     init(startURL: URL? = nil, preferences: UserDefaults = .standard) {
@@ -96,15 +100,15 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func buildUI() {
-        backButton = iconButton("Назад", "chevron.left") { [weak self] in self?.history(-1) }
-        forwardButton = iconButton("Вперёд", "chevron.right") { [weak self] in self?.history(1) }
-        let up = iconButton("На уровень вверх", "arrow.up") { [weak self] in self?.up() }
+        backButton = iconButton("Back", "chevron.left") { [weak self] in self?.history(-1) }
+        forwardButton = iconButton("Forward", "chevron.right") { [weak self] in self?.history(1) }
+        let up = iconButton("Go Up", "arrow.up") { [weak self] in self?.up() }
         pathField.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         pathField.lineBreakMode = .byTruncatingHead
-        pathField.setAccessibilityLabel("Полный путь")
+        pathField.setAccessibilityLabel("Full Path")
         pathField.target = self; pathField.action = #selector(enterPath)
         pathField.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let pathCopy = iconButton("Копировать текущий путь", "doc.on.doc") { [weak self] in self?.copyCurrentPath() }
+        let pathCopy = iconButton("Copy Current Path", "doc.on.doc") { [weak self] in self?.copyCurrentPath() }
         let navigation = inset(horizontal([backButton, forwardButton, up, pathField, pathCopy]))
 
         tabsStack.orientation = .horizontal; tabsStack.spacing = 4; tabsStack.alignment = .centerY
@@ -118,16 +122,16 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
             tabDocument.heightAnchor.constraint(equalTo: tabScroll.contentView.heightAnchor)
         ])
         tabScroll.heightAnchor.constraint(equalToConstant: 34).isActive = true
-        let addTab = iconButton("Новая вкладка", "plus") { [weak self] in self?.newTab(nil) }
+        let addTab = iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) }
         let tabRow = inset(horizontal([tabScroll, addTab]), y: 2)
 
-        let folder = ActionButton("Новая папка", symbol: "folder.badge.plus") { [weak self] in self?.createFolder(nil) }
-        let file = ActionButton("Новый файл", symbol: "doc.badge.plus") { [weak self] in self?.createFile(nil) }
-        hiddenButton = NSButton(checkboxWithTitle: "Скрытые", target: self, action: #selector(toggleHidden))
+        let folder = ActionButton("New Folder", symbol: "folder.badge.plus") { [weak self] in self?.createFolder(nil) }
+        let file = ActionButton("New File", symbol: "doc.badge.plus") { [weak self] in self?.createFile(nil) }
+        hiddenButton = NSButton(checkboxWithTitle: "Hidden Files", target: self, action: #selector(toggleHidden))
         hiddenButton.state = shownHidden ? .on : .off
-        hiddenButton.toolTip = "Показывать скрытые файлы. Настройка сохраняется."
-        searchField.placeholderString = "Поиск по именам…"
-        searchField.setAccessibilityLabel("Поиск по именам во вложенных папках")
+        hiddenButton.toolTip = "Show hidden files. This setting is saved."
+        searchField.placeholderString = "Search by Name…"
+        searchField.setAccessibilityLabel("Search file and folder names, including subfolders")
         searchField.sendsSearchStringImmediately = false; searchField.sendsWholeSearchString = true
         searchField.target = self; searchField.action = #selector(startSearch)
         searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 150).isActive = true
@@ -152,8 +156,8 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         table.openSelection = { [weak self] in self?.openSelected(nil) }
         table.renameSelection = { [weak self] in self?.renameSelected(nil) }
         table.goUp = { [weak self] in self?.up() }
-        table.setAccessibilityLabel("Файлы")
-        for (key, title, width) in [("name", "Имя", 390.0), ("size", "Размер", 95.0), ("date", "Изменён", 145.0), ("parent", "Папка", 250.0)] {
+        table.setAccessibilityLabel("Files")
+        for (key, title, width) in [("name", "Name", 390.0), ("size", "Size", 95.0), ("date", "Modified", 145.0), ("parent", "Folder", 250.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(key)); column.title = title
             column.width = width; column.minWidth = key == "name" ? 180 : 70
             if key != "parent" { column.sortDescriptorPrototype = NSSortDescriptor(key: key, ascending: true) }
@@ -193,7 +197,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         status.font = .systemFont(ofSize: 11); status.textColor = .secondaryLabelColor; status.lineBreakMode = .byTruncatingMiddle
         status.setContentHuggingPriority(.defaultLow, for: .horizontal)
         progress.style = .spinning; progress.controlSize = .small; progress.isDisplayedWhenStopped = false
-        cancelButton = ActionButton("Отменить") { [weak self] in self?.cancelCurrent() }; cancelButton.controlSize = .small; cancelButton.isHidden = true
+        cancelButton = ActionButton("Cancel") { [weak self] in self?.cancelCurrent() }; cancelButton.controlSize = .small; cancelButton.isHidden = true
         let footer = inset(horizontal([status, progress, cancelButton]), y: 5)
         let root = WindowBackground(); root.translatesAutoresizingMaskIntoConstraints = false
         let topLine = divider(), bottomLine = divider()
@@ -238,15 +242,15 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
             button.toolTip = url.path
             button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             var views: [NSView] = [button]
-            if ejectable { views.append(iconButton("Извлечь \(title)", "eject") { [weak self] in self?.eject(url) }) }
+            if ejectable { views.append(iconButton("Eject \(title)", "eject") { [weak self] in self?.eject(url) }) }
             let row = horizontal(views, spacing: 2); sidebar.addArrangedSubview(row)
             button.widthAnchor.constraint(equalTo: sidebar.widthAnchor, constant: -32).isActive = true
             row.widthAnchor.constraint(equalTo: sidebar.widthAnchor).isActive = true
         }
-        heading("Папки")
-        place("Домашняя", "house", FileManager.default.homeDirectoryForCurrentUser)
-        if let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first { place("Загрузки", "arrow.down.circle", downloads) }
-        heading("Диски")
+        heading("Folders")
+        place("Home", "house", FileManager.default.homeDirectoryForCurrentUser)
+        if let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first { place("Downloads", "arrow.down.circle", downloads) }
+        heading("Disks")
         place("Macintosh HD", "internaldrive", URL(fileURLWithPath: "/"))
         let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeIsInternalKey, .volumeLocalizedNameKey, .volumeIsEjectableKey, .volumeIsRemovableKey], options: [.skipHiddenVolumes]) ?? []
         for url in volumes where url.path != "/" {
@@ -314,7 +318,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : current.appendingPathComponent(path)
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            showError(FileProblem.message("Папка не найдена или недоступна: \(path)")); return
+            showError(FileProblem.message("Folder not found or inaccessible: \(path)")); return
         }
         navigate(url); window?.makeFirstResponder(table)
     }
@@ -404,9 +408,9 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
                 guard let self, self.generation == request else { return }
                 self.search = nil; self.updateStatus()
                 switch result {
-                case .success(let unreadable): if unreadable > 0 { self.status.stringValue += " · Недоступно папок: \(unreadable)" }
+                case .success(let unreadable): if unreadable > 0 { self.status.stringValue += " · Inaccessible folders: \(unreadable)" }
                 case .failure(let error):
-                    if error is CancellationError { self.status.stringValue += " · Поиск остановлен" }
+                    if error is CancellationError { self.status.stringValue += " · Search stopped" }
                     else { self.showError(error) }
                 }
             }
@@ -414,11 +418,11 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     }
     func updateStatus() {
         emptyLabel.isHidden = !entries.isEmpty
-        emptyLabel.stringValue = lastReadError.map { "Папка недоступна\n\($0)" } ??
-            (isLoading ? "Чтение папки…" : (isSearch ? (search != nil ? "Идёт поиск…" : "Ничего не найдено") : "Папка пуста\nСоздайте папку или файл кнопками сверху"))
+        emptyLabel.stringValue = lastReadError.map { "Folder unavailable\n\($0)" } ??
+            (isLoading ? "Reading folder…" : (isSearch ? (search != nil ? "Searching…" : "No results") : "Folder is empty\nUse the buttons above to create a folder or file"))
         if operation == nil {
-            status.stringValue = "\(isSearch ? "Найдено" : "Элементов"): \(entries.count)" +
-                (selected.isEmpty ? "" : " · Выбрано: \(selected.count)") + (completionMessage.map { " · " + $0 } ?? "")
+            status.stringValue = "\(isSearch ? "Found" : "Items"): \(entries.count)" +
+                (selected.isEmpty ? "" : " · Selected: \(selected.count)") + (completionMessage.map { " · " + $0 } ?? "")
         }
         let working = operation != nil || search != nil
         cancelButton.isHidden = !working
@@ -441,9 +445,9 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         if isParentRow(row) {
             label.stringValue = column.identifier.rawValue == "name" ? ".." : ""
             label.textColor = .labelColor
-            cell.imageView?.image = NSImage(systemSymbolName: "arrow.up", accessibilityDescription: "На уровень выше")
+            cell.imageView?.image = NSImage(systemSymbolName: "arrow.up", accessibilityDescription: "Go Up")
             cell.imageView?.contentTintColor = .systemBlue
-            cell.toolTip = "На уровень выше: \(current.deletingLastPathComponent().path)"
+            cell.toolTip = "Go Up: \(current.deletingLastPathComponent().path)"
             cell.alphaValue = 1
             return cell
         }
@@ -451,9 +455,9 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         switch column.identifier.rawValue {
         case "name":
             label.stringValue = entry.name
-            cell.imageView?.image = NSImage(systemSymbolName: entry.isLink ? "link" : (entry.canBrowse ? "folder" : "doc"), accessibilityDescription: entry.canBrowse ? "Папка" : "Файл")
+            cell.imageView?.image = NSImage(systemSymbolName: entry.isLink ? "link" : (entry.canBrowse ? "folder" : "doc"), accessibilityDescription: entry.canBrowse ? "Folder" : "File")
             cell.imageView?.contentTintColor = entry.canBrowse ? .systemBlue : .secondaryLabelColor
-        case "size": label.stringValue = entry.isDirectory ? "—" : ByteCountFormatStyle(spellsOutZero: false, locale: Locale(identifier: "ru_RU")).format(entry.size)
+        case "size": label.stringValue = entry.isDirectory ? "—" : ByteCountFormatStyle(spellsOutZero: false, locale: Locale(identifier: "en_US")).format(entry.size)
         case "date": label.stringValue = dateFormatter.string(from: entry.modified)
         default: label.stringValue = entry.url.deletingLastPathComponent().path
         }
@@ -491,7 +495,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     }
     func windowWillClose(_ notification: Notification) { captureTab(); saveTabs(); watcher?.cancel(); search?.cancel() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if operation != nil { showError(FileProblem.message("Дождитесь завершения операции или отмените её перед закрытием.")); return false }
+        if operation != nil { showError(FileProblem.message("Wait for the operation to finish or cancel it before closing the window.")); return false }
         return true
     }
 }

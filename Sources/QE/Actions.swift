@@ -12,40 +12,40 @@ extension BrowserController {
             let root = NSMenuItem(); root.title = title; let menu = NSMenu(title: title)
             items.forEach(menu.addItem); root.submenu = menu; bar.addItem(root)
         }
-        let quit = NSMenuItem(title: "Завершить QE", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        let about = NSMenuItem(title: "О QE", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        let hide = NSMenuItem(title: "Скрыть QE", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let quit = NSMenuItem(title: "Quit QE", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let about = NSMenuItem(title: "About QE", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let hide = NSMenuItem(title: "Hide QE", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         menu("QE", [about, .separator(), hide, .separator(), quit])
-        menu("Файл", [item("Новая папка", #selector(createFolder(_:)), "n", modifiers: [.command, .shift]),
-            item("Новый файл", #selector(createFile(_:)), "n"), .separator(),
-            item("Новая вкладка", #selector(newTab(_:)), "t"), item("Закрыть вкладку", #selector(closeCurrentTab(_:)), "w"), .separator(),
-            item("Открыть", #selector(openSelected(_:)), "o"), item("Открыть с помощью…", #selector(openWith(_:))),
-            item("Сбросить приложение для расширения", #selector(resetAssociation(_:))), item("Переименовать…", #selector(renameSelected(_:))),
-            item("В корзину", #selector(trashSelected(_:)), "\u{8}"), .separator(),
-            item("Создать ZIP…", #selector(createZIP(_:))), item("Создать 7z…", #selector(create7z(_:))), item("Распаковать…", #selector(extractArchive(_:)))])
-        menu("Правка", [item("Вырезать", #selector(cutFiles(_:)), "x"), item("Копировать", #selector(copyFiles(_:)), "c"),
-            item("Вставить", #selector(pasteFiles(_:)), "v"), item("Выбрать всё", #selector(selectAllFiles(_:)), "a"), .separator(),
-            item("Копировать путь", #selector(copyPaths(_:)), "c", modifiers: [.command, .option]),
-            item("Копировать в…", #selector(copyTo(_:))), item("Переместить в…", #selector(moveTo(_:)))])
-        menu("Вид", [item("Показать скрытые файлы", #selector(toggleHidden(_:)), ".", modifiers: [.command, .shift]),
-            item("Обновить", #selector(refresh(_:)), "r"), item("Перейти к пути", #selector(focusPath(_:)), "l"),
-            item("Поиск по именам", #selector(focusSearch(_:)), "f"), item("Перейти к файлу", #selector(revealSelected(_:)))])
-        let windowMenu = NSMenu(title: "Окно")
-        windowMenu.addItem(withTitle: "Свернуть", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(withTitle: "Развернуть", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        menu("File", [item("New Folder", #selector(createFolder(_:)), "n", modifiers: [.command, .shift]),
+            item("New File", #selector(createFile(_:)), "n"), .separator(),
+            item("New Tab", #selector(newTab(_:)), "t"), item("Close Tab", #selector(closeCurrentTab(_:)), "w"), .separator(),
+            item("Open", #selector(openSelected(_:)), "o"), item("Open With…", #selector(openWith(_:))),
+            item("Reset Default Application", #selector(resetAssociation(_:))), item("Rename…", #selector(renameSelected(_:))),
+            item("Move to Trash", #selector(trashSelected(_:)), "\u{8}"), .separator(),
+            item("Create ZIP…", #selector(createZIP(_:))), item("Create 7z…", #selector(create7z(_:))), item("Extract…", #selector(extractArchive(_:)))])
+        menu("Edit", [item("Cut", #selector(cutFiles(_:)), "x"), item("Copy", #selector(copyFiles(_:)), "c"),
+            item("Paste", #selector(pasteFiles(_:)), "v"), item("Select All", #selector(selectAllFiles(_:)), "a"), .separator(),
+            item("Copy Path", #selector(copyPaths(_:)), "c", modifiers: [.command, .option]),
+            item("Copy To…", #selector(copyTo(_:))), item("Move To…", #selector(moveTo(_:)))])
+        menu("View", [item("Show Hidden Files", #selector(toggleHidden(_:)), ".", modifiers: [.command, .shift]),
+            item("Refresh", #selector(refresh(_:)), "r"), item("Go to Path", #selector(focusPath(_:)), "l"),
+            item("Search by Name", #selector(focusSearch(_:)), "f"), item("Show in Folder", #selector(revealSelected(_:)))])
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
         let windowItem = NSMenuItem(); windowItem.submenu = windowMenu; bar.addItem(windowItem)
         NSApp.windowsMenu = windowMenu; NSApp.mainMenu = bar
 
         let context = NSMenu()
-        [item("Открыть", #selector(openSelected(_:))), item("Открыть с помощью…", #selector(openWith(_:))),
-         item("Сбросить приложение для расширения", #selector(resetAssociation(_:))), item("Открыть в новой вкладке", #selector(openInTab(_:))),
-         item("Перейти к файлу", #selector(revealSelected(_:))), .separator(),
-         item("Новая папка…", #selector(createFolder(_:))), item("Новый файл…", #selector(createFile(_:))), .separator(),
-         item("Копировать", #selector(copyFiles(_:))), item("Вырезать", #selector(cutFiles(_:))), item("Вставить", #selector(pasteFiles(_:))),
-         item("Копировать путь", #selector(copyPaths(_:))), .separator(),
-         item("Копировать в…", #selector(copyTo(_:))), item("Переместить в…", #selector(moveTo(_:))), item("Переименовать…", #selector(renameSelected(_:))),
-         .separator(), item("Создать ZIP…", #selector(createZIP(_:))), item("Создать 7z…", #selector(create7z(_:))),
-         item("Распаковать…", #selector(extractArchive(_:))), .separator(), item("В корзину", #selector(trashSelected(_:)))].forEach(context.addItem)
+        [item("Open", #selector(openSelected(_:))), item("Open With…", #selector(openWith(_:))),
+         item("Reset Default Application", #selector(resetAssociation(_:))), item("Open in New Tab", #selector(openInTab(_:))),
+         item("Show in Folder", #selector(revealSelected(_:))), .separator(),
+         item("New Folder…", #selector(createFolder(_:))), item("New File…", #selector(createFile(_:))), .separator(),
+         item("Copy", #selector(copyFiles(_:))), item("Cut", #selector(cutFiles(_:))), item("Paste", #selector(pasteFiles(_:))),
+         item("Copy Path", #selector(copyPaths(_:))), .separator(),
+         item("Copy To…", #selector(copyTo(_:))), item("Move To…", #selector(moveTo(_:))), item("Rename…", #selector(renameSelected(_:))),
+         .separator(), item("Create ZIP…", #selector(createZIP(_:))), item("Create 7z…", #selector(create7z(_:))),
+         item("Extract…", #selector(extractArchive(_:))), .separator(), item("Move to Trash", #selector(trashSelected(_:)))].forEach(context.addItem)
         table.menu = context
     }
 
@@ -62,7 +62,7 @@ extension BrowserController {
         if action == #selector(openWith(_:)) { return selected.count == 1 && isDocument(selected[0]) }
         if action == #selector(resetAssociation(_:)) {
             let file = selected.count == 1 ? selected.first : nil
-            menuItem.title = file.flatMap { FileAssociations.fileExtension(for: $0) }.map { "Сбросить приложение для .\($0)" } ?? "Сбросить приложение для расширения"
+            menuItem.title = file.flatMap { FileAssociations.fileExtension(for: $0) }.map { "Reset Application for .\($0)" } ?? "Reset Default Application"
             return file.map { isDocument($0) && associations.application(for: $0) != nil } ?? false
         }
         if action == #selector(revealSelected(_:)) { return selected.count == 1 }
@@ -76,21 +76,21 @@ extension BrowserController {
     }
 
     func showError(_ error: Error) {
-        let alert = NSAlert(); alert.messageText = "Не удалось завершить действие"
+        let alert = NSAlert(); alert.messageText = "Could Not Complete the Action"
         alert.informativeText = error.localizedDescription; alert.alertStyle = .warning
-        alert.addButton(withTitle: "Понятно"); alert.runModal()
+        alert.addButton(withTitle: "OK"); alert.runModal()
     }
     func namePrompt(title: String, value: String, confirm: String) -> String? {
         let alert = NSAlert(); alert.messageText = title
         let field = NSTextField(string: value); field.frame = NSRect(x: 0, y: 0, width: 360, height: 24)
-        field.setAccessibilityLabel("Имя"); alert.accessoryView = field
-        alert.addButton(withTitle: confirm); alert.addButton(withTitle: "Отмена")
+        field.setAccessibilityLabel("Name"); alert.accessoryView = field
+        alert.addButton(withTitle: confirm); alert.addButton(withTitle: "Cancel")
         alert.window.initialFirstResponder = field
         field.selectText(nil)
         return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
     }
     func chooseDirectory(title: String) -> URL? {
-        let panel = NSOpenPanel(); panel.title = title; panel.prompt = "Выбрать"
+        let panel = NSOpenPanel(); panel.title = title; panel.prompt = "Choose"
         panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false; panel.directoryURL = current; panel.showsHiddenFiles = shownHidden
         return panel.runModal() == .OK ? panel.url : nil
@@ -109,14 +109,14 @@ extension BrowserController {
                 switch result {
                 case .success(let message): self.completionMessage = message; self.updateStatus()
                 case .failure(let error):
-                    if error is CancellationError { self.completionMessage = "Операция отменена"; self.updateStatus() }
+                    if error is CancellationError { self.completionMessage = "Operation cancelled"; self.updateStatus() }
                     else { self.showError(error) }
                 }
             }
         }
     }
     func cancelCurrent() {
-        if let operation { operation.cancel(); status.stringValue = "Отмена… Текущий файл может потребовать времени." }
+        if let operation { operation.cancel(); status.stringValue = "Cancelling… The current file may take a while." }
         else { search?.cancel() }
     }
 
@@ -124,13 +124,13 @@ extension BrowserController {
     @objc func createFile(_ sender: Any?) { create(directory: false) }
     func create(directory: Bool) {
         guard operation == nil, !isSearch else { NSSound.beep(); return }
-        guard let name = namePrompt(title: directory ? "Новая папка" : "Новый пустой файл", value: directory ? "Новая папка" : "", confirm: "Создать") else { return }
+        guard let name = namePrompt(title: directory ? "New Folder" : "New Empty File", value: directory ? "New Folder" : "", confirm: "Create") else { return }
         let parent = current
-        runOperation("Создание…") { [weak self] token, _ in
+        runOperation("Creating…") { [weak self] token, _ in
             try token.check()
             let url = try Files.create(name: name, in: parent, directory: directory)
             DispatchQueue.main.async { if self?.current == parent { self?.revealURL = url } }
-            return "Создано: \(name)"
+            return "Created: \(name)"
         }
     }
     func canBrowse(_ url: URL) -> Bool { (try? FileEntry(url: url.resolvingSymlinksInPath()).canBrowse) == true }
@@ -152,11 +152,11 @@ extension BrowserController {
     }
     @objc func renameSelected(_ sender: Any?) {
         guard operation == nil, selected.count == 1, let url = selected.first else { return }
-        guard let name = namePrompt(title: "Переименовать", value: url.lastPathComponent, confirm: "Переименовать") else { return }
-        runOperation("Переименование…") { [weak self] token, _ in
+        guard let name = namePrompt(title: "Rename", value: url.lastPathComponent, confirm: "Rename") else { return }
+        runOperation("Renaming…") { [weak self] token, _ in
             try token.check(); let target = try Files.rename(url, to: name)
             DispatchQueue.main.async { if self?.current == target.deletingLastPathComponent() { self?.revealURL = target } }
-            return "Переименовано: \(name)"
+            return "Renamed: \(name)"
         }
     }
     func copyCurrentPath() { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(current.path, forType: .string) }
@@ -191,17 +191,17 @@ extension BrowserController {
         else { table.selectRowIndexes(IndexSet(integersIn: row(forEntry: 0)..<numberOfRows(in: table)), byExtendingSelection: false) }
     }
     @objc func copyTo(_ sender: Any?) {
-        let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Копировать в папку") else { return }
+        let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Copy to Folder") else { return }
         transfer(urls, to: directory, move: false)
     }
     @objc func moveTo(_ sender: Any?) {
-        let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Переместить в папку") else { return }
+        let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Move to Folder") else { return }
         transfer(urls, to: directory, move: true)
     }
     func resolveConflict(_ target: URL) -> ConflictChoice {
-        let alert = NSAlert(); alert.messageText = "«\(target.lastPathComponent)» уже существует"
-        alert.informativeText = "\(target.deletingLastPathComponent().path)\nПри замене существующий элемент будет заменён целиком. Папки не объединяются."
-        ["Сохранить оба", "Пропустить", "Заменить", "Отменить операцию"].forEach { alert.addButton(withTitle: $0) }
+        let alert = NSAlert(); alert.messageText = "“\(target.lastPathComponent)” already exists"
+        alert.informativeText = "\(target.deletingLastPathComponent().path)\nReplacing overwrites the entire existing item. Folders are not merged."
+        ["Keep Both", "Skip", "Replace", "Cancel Operation"].forEach { alert.addButton(withTitle: $0) }
         switch alert.runModal() {
         case .alertFirstButtonReturn: return .keepBoth
         case .alertSecondButtonReturn: return .skip
@@ -212,12 +212,12 @@ extension BrowserController {
     func transfer(_ urls: [URL], to directory: URL, move: Bool) {
         guard operation == nil else { NSSound.beep(); return }
         let sources = Files.topLevelSelection(urls)
-        runOperation(move ? "Перемещение…" : "Копирование…") { [weak self] token, report in
+        runOperation(move ? "Moving…" : "Copying…") { [weak self] token, report in
             var completed = 0; var skipped = 0; var errors: [String] = []
             var moved: [URL] = []
             for (index, source) in sources.enumerated() {
                 if token.isCancelled { break }
-                report("\(move ? "Перемещение" : "Копирование") \(index + 1)/\(sources.count): \(source.lastPathComponent)")
+                report("\(move ? "Moving" : "Copying") \(index + 1)/\(sources.count): \(source.lastPathComponent)")
                 do {
                     let result = try Files.transfer(source, to: directory, move: move, cancellation: token) { target in
                         DispatchQueue.main.sync { self?.resolveConflict(target) ?? .cancel }
@@ -236,7 +236,7 @@ extension BrowserController {
                     self.cutChange = NSPasteboard.general.changeCount
                 }
             }
-            let summary = "Готово: \(completed) из \(sources.count) · Пропущено: \(skipped)" + (token.isCancelled ? " · Отменено, остальные элементы не обработаны" : "")
+            let summary = "Completed: \(completed) of \(sources.count) · Skipped: \(skipped)" + (token.isCancelled ? " · Cancelled; remaining items were not processed" : "")
             if !errors.isEmpty { throw FileProblem.message(summary + "\n\n" + errors.joined(separator: "\n")) }
             return summary
         }
@@ -244,19 +244,19 @@ extension BrowserController {
     @objc func trashSelected(_ sender: Any?) {
         guard operation == nil else { return }
         let urls = Files.topLevelSelection(selected); guard !urls.isEmpty else { return }
-        let alert = NSAlert(); alert.messageText = "Отправить в корзину: \(urls.count)?"
+        let alert = NSAlert(); alert.messageText = "Move \(urls.count) item(s) to Trash?"
         alert.informativeText = urls.prefix(5).map(\.lastPathComponent).joined(separator: "\n")
-        alert.addButton(withTitle: "В корзину"); alert.addButton(withTitle: "Отмена")
+        alert.addButton(withTitle: "Move to Trash"); alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        runOperation("Перемещение в корзину…") { token, report in
+        runOperation("Moving to Trash…") { token, report in
             var completed = 0; var errors: [String] = []
             for url in urls {
                 if token.isCancelled { break }
-                report("В корзину: \(url.lastPathComponent)")
+                report("Move to Trash: \(url.lastPathComponent)")
                 do { try Files.trash(url); completed += 1 }
                 catch { errors.append("\(url.lastPathComponent): \(error.localizedDescription)") }
             }
-            let summary = "В корзине: \(completed) из \(urls.count)" + (token.isCancelled ? " · Отменено" : "")
+            let summary = "Trashed: \(completed) of \(urls.count)" + (token.isCancelled ? " · Cancelled" : "")
             if !errors.isEmpty { throw FileProblem.message(summary + "\n" + errors.joined(separator: "\n")) }
             return summary
         }
@@ -266,35 +266,35 @@ extension BrowserController {
     func createArchive(format: String) {
         guard operation == nil, !selected.isEmpty else { return }
         let sources = selected
-        let panel = NSSavePanel(); panel.title = "Создать \(format.uppercased())"; panel.prompt = "Создать"
+        let panel = NSSavePanel(); panel.title = "Create \(format.uppercased())"; panel.prompt = "Create"
         panel.directoryURL = current; panel.showsHiddenFiles = shownHidden
-        panel.nameFieldStringValue = (sources.count == 1 ? sources[0].lastPathComponent : "Архив") + "." + format
+        panel.nameFieldStringValue = (sources.count == 1 ? sources[0].lastPathComponent : "Archive") + "." + format
         guard panel.runModal() == .OK, var destination = panel.url else { return }
         if destination.pathExtension.lowercased() != format { destination.appendPathExtension(format) }
-        runOperation("Создание архива…") { token, _ in
+        runOperation("Creating archive…") { token, _ in
             try Archives.create(sources, at: destination, format: format, cancellation: token)
-            return "Создан архив: \(destination.lastPathComponent)"
+            return "Archive created: \(destination.lastPathComponent)"
         }
     }
     @objc func extractArchive(_ sender: Any?) {
         guard operation == nil, selected.count == 1, let archive = selected.first,
-              let parent = chooseDirectory(title: "Куда распаковать архив") else { return }
+              let parent = chooseDirectory(title: "Extract Archive To") else { return }
         let suggestion = Files.availableName(for: parent.appendingPathComponent(archive.deletingPathExtension().lastPathComponent))
-        guard let name = namePrompt(title: "Папка для распаковки", value: suggestion.lastPathComponent, confirm: "Распаковать") else { return }
+        guard let name = namePrompt(title: "Extraction Folder", value: suggestion.lastPathComponent, confirm: "Extract") else { return }
         do {
             let destination = try Files.named(name, in: parent)
-            runOperation("Распаковка…") { token, _ in
+            runOperation("Extracting…") { token, _ in
                 try Archives.extract(archive, to: destination, cancellation: token)
-                return "Распаковано: \(destination.lastPathComponent)"
+                return "Extracted: \(destination.lastPathComponent)"
             }
         } catch { showError(error) }
     }
     func eject(_ url: URL) {
-        guard operation == nil else { showError(FileProblem.message("Дождитесь завершения файловой операции перед извлечением диска.")); return }
+        guard operation == nil else { showError(FileProblem.message("Wait for the file operation to finish before ejecting the disk.")); return }
         if current.path == url.path || current.path.hasPrefix(url.path + "/") { watcher?.cancel(); watcher = nil }
-        runOperation("Извлечение диска…") { _, _ in
+        runOperation("Ejecting disk…") { _, _ in
             try NSWorkspace.shared.unmountAndEjectDevice(at: url)
-            return "Диск можно отключить"
+            return "The disk can now be disconnected"
         }
     }
 }

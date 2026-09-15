@@ -22,13 +22,13 @@ extension BrowserController {
     func openFile(_ file: URL) {
         if isDocument(file), associations.application(for: file) != nil {
             guard let application = associatedApplication(for: file) else {
-                chooseApplication(for: file, explanation: "Сохранённое приложение не найдено. Выберите другое.")
+                chooseApplication(for: file, explanation: "The saved application was not found. Choose another application.")
                 return
             }
             launchDocument(file, with: application, remember: false)
         } else if !NSWorkspace.shared.open(file) {
-            if isDocument(file) { chooseApplication(for: file, explanation: "Системное приложение не смогло открыть файл.") }
-            else { showError(FileProblem.message("Не удалось открыть \(file.lastPathComponent).")) }
+            if isDocument(file) { chooseApplication(for: file, explanation: "The default application could not open the file.") }
+            else { showError(FileProblem.message("Could not open \(file.lastPathComponent).")) }
         }
     }
 
@@ -41,12 +41,12 @@ extension BrowserController {
         guard selected.count == 1, let file = selected.first, isDocument(file),
               let ext = FileAssociations.fileExtension(for: file) else { return }
         associations.reset(for: file)
-        completionMessage = "Для .\(ext) используется системное приложение"; updateStatus()
+        completionMessage = "Using the system default for .\(ext)"; updateStatus()
     }
 
     func rememberCheckbox(for file: URL) -> NSButton {
         let ext = FileAssociations.fileExtension(for: file)
-        let checkbox = NSButton(checkboxWithTitle: ext.map { "Всегда открывать .\($0) в QE этим приложением" } ?? "У файла нет расширения — только это открытие",
+        let checkbox = NSButton(checkboxWithTitle: ext.map { "Always open .\($0) files in QE with this application" } ?? "No file extension: use this application once",
                                 target: nil, action: nil)
         checkbox.isEnabled = ext != nil
         checkbox.state = .off
@@ -61,13 +61,13 @@ extension BrowserController {
         }
         guard !applications.isEmpty else { browseApplication(for: file, explanation: explanation); return }
         let alert = NSAlert()
-        alert.messageText = "Открыть «\(file.lastPathComponent)» с помощью"
-        alert.informativeText = explanation ?? "Выберите приложение для открытия файла."
+        alert.messageText = "Open “\(file.lastPathComponent)” With"
+        alert.informativeText = explanation ?? "Choose an application to open the file."
         let picker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 420, height: 26), pullsDown: false)
-        picker.setAccessibilityLabel("Приложение")
+        picker.setAccessibilityLabel("Application")
         let savedPath = associatedApplication(for: file)?.path
         for application in applications {
-            let suffix = application.path == savedPath ? " — выбрано в QE" : ""
+            let suffix = application.path == savedPath ? " — QE default" : ""
             // Add NSMenuItems directly: two installed versions may have the same display name.
             let item = NSMenuItem(title: application.deletingPathExtension().lastPathComponent + suffix, action: nil, keyEquivalent: "")
             item.toolTip = application.path
@@ -80,7 +80,7 @@ extension BrowserController {
         content.frame = NSRect(x: 0, y: 0, width: 420, height: 64)
         picker.widthAnchor.constraint(equalToConstant: 420).isActive = true
         alert.accessoryView = content
-        alert.addButton(withTitle: "Открыть"); alert.addButton(withTitle: "Отмена"); alert.addButton(withTitle: "Другое…")
+        alert.addButton(withTitle: "Open"); alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Other…")
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             guard applications.indices.contains(picker.indexOfSelectedItem) else { return }
@@ -93,8 +93,8 @@ extension BrowserController {
 
     func browseApplication(for file: URL, remember: Bool = false, explanation: String? = nil) {
         let panel = NSOpenPanel()
-        panel.title = "Приложение для «\(file.lastPathComponent)»"; panel.prompt = "Открыть"
-        panel.message = explanation ?? "Выберите приложение."
+        panel.title = "Application for “\(file.lastPathComponent)”"; panel.prompt = "Open"
+        panel.message = explanation ?? "Choose an application."
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.canChooseFiles = true; panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false; panel.treatsFilePackagesAsDirectories = false
@@ -116,11 +116,11 @@ extension BrowserController {
             DispatchQueue.main.async {
                 guard let self else { completion?(error); return }
                 if let error {
-                    if completion == nil { self.showError(FileProblem.message("Не удалось открыть «\(file.lastPathComponent)» в \(application.deletingPathExtension().lastPathComponent).\n\(error.localizedDescription)\nВыберите другое приложение через «Открыть с помощью…».")) }
+                    if completion == nil { self.showError(FileProblem.message("Could not open “\(file.lastPathComponent)” in \(application.deletingPathExtension().lastPathComponent).\n\(error.localizedDescription)\nChoose another application using “Open With…”.")) }
                 } else if remember {
                     self.associations.remember(application, bundleIdentifier: Bundle(url: application)?.bundleIdentifier, for: file)
                     if let ext = FileAssociations.fileExtension(for: file) {
-                        self.completionMessage = "Для .\(ext) выбрано \(application.deletingPathExtension().lastPathComponent)"; self.updateStatus()
+                        self.completionMessage = "Using \(application.deletingPathExtension().lastPathComponent) for .\(ext)"; self.updateStatus()
                     }
                 }
                 completion?(error)

@@ -62,7 +62,7 @@ final class TabButton: NSButton {
         }
     }
     init(title: String, close: @escaping () -> Void) {
-        closeButton = ActionButton("Закрыть вкладку", symbol: "xmark", action: close)
+        closeButton = ActionButton("Close Tab", symbol: "xmark", action: close)
         super.init(frame: .zero)
         self.title = title
         bezelStyle = .recessed
@@ -73,7 +73,7 @@ final class TabButton: NSButton {
         closeButton.title = ""
         closeButton.imagePosition = .imageOnly
         closeButton.isBordered = false
-        closeButton.toolTip = "Закрыть вкладку"
+        closeButton.toolTip = "Close Tab"
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         addSubview(closeButton)
         NSLayoutConstraint.activate([
