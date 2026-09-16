@@ -46,7 +46,7 @@ For manual installation, [Releases](https://github.com/qzmi4meister/qe/releases)
 
 - **Windows** open through **File → New Window** or the window button beside **+**. A new window starts in the current folder. Windows and their tab paths are restored at launch.
 - **Tabs** open with **+** and close with the cross inside each tab. **Move Tab to New Window** is available in the tab context menu and the **Window** menu. Moving preserves navigation history, sorting, selection, scroll position, and an active search. Another tab or pane must remain, and the source pane must have no file operation running.
-- **Split Tab** in the tab context menu displays the tab in a second pane. With one tab, it creates another tab at the same folder. Each pane has its own tabs, path, search, and selection. Clicking a pane directs keyboard commands to it; its active tab is blue. The divider resizes the panes. **Close Split** combines the tabs into one pane. Closing or detaching a pane’s last tab removes that pane. Split mode and tab paths are restored at launch.
+- **Split Tab** (⌘D) in the Window menu or tab context menu displays the tab in a second pane. With one tab, it creates another tab at the same folder. Each pane has its own tabs, path, search, and selection. Clicking a pane directs keyboard commands to it; its active tab is blue. The divider resizes the panes. **Close Split** (⌘⇧D) combines the tabs into one pane. Closing or detaching a pane’s last tab removes that pane. Split mode and tab paths are restored at launch.
 - **Path** is editable at the top of the window. The adjacent button copies the current path; the context menu copies paths of selected items.
 - **Go Up**: double-clicking the `..` row opens the parent folder. The row stays above files when sorting and is excluded from file operations. It is hidden at the filesystem root and in search results.
 - **Hidden Files** are shown on first launch. The visibility setting is saved.
@@ -88,6 +88,7 @@ Double-clicking a ZIP or 7z archive extracts it into a folder beside the archive
 | New folder | ⌘⇧N |
 | New file | ⌘N |
 | New / close tab | ⌘T / ⌘W |
+| Split current tab / close Split | ⌘D / ⌘⇧D |
 | Switch active pane in Split (from the file list) | Tab |
 | Select tab 1–10 in the active pane | ⌘1…9, ⌘0 |
 | New window | ⌘⌥N |

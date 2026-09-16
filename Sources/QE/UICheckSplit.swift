@@ -4,6 +4,16 @@ import QuickLookUI
 import QECore
 
 extension UICheck {
+    func pressSplitKey(close: Bool = false, in pane: BrowserController) {
+        pane.window?.makeKeyAndOrderFront(nil)
+        pane.window?.makeFirstResponder(pane.table)
+        let event = NSEvent.keyEvent(with: .keyDown, location: .zero,
+            modifierFlags: close ? [.command, .shift] : .command,
+            timestamp: 0, windowNumber: pane.window!.windowNumber, context: nil,
+            characters: close ? "D" : "d", charactersIgnoringModifiers: close ? "D" : "d", isARepeat: false, keyCode: 2)!
+        expect(NSApp.mainMenu!.performKeyEquivalent(with: event), "Split shortcut did not invoke its menu action (close=\(close))")
+    }
+
     func selectFixture(_ name: String, in pane: BrowserController) {
         guard let index = pane.entries.firstIndex(where: { $0.name == name }) else {
             failures.append("Missing fixture: \(name)"); return
@@ -236,7 +246,7 @@ extension UICheck {
         restored.preferences.removePersistentDomain(forName: restoreSuite)
         browser.window?.makeKeyAndOrderFront(nil)
         let ids = Set(owner.panes.flatMap { $0.tabs.map(\.id) })
-        browser.closeSplit(nil)
+        pressSplitKey(close: true, in: browser)
         expect(owner.panes.count == 1 && Set(browser.tabs.map(\.id)) == ids, "Close Split lost tabs")
         expect(right.owner == nil && right.watcher == nil && right.search == nil, "Closed pane retained background work")
         browser.selectTab(1)
@@ -244,14 +254,14 @@ extension UICheck {
         browser.searchField.stringValue = "needle"
         browser.startSearch(nil)
         waitUntil({ self.browser.search == nil }) {
-            self.browser.splitTab(nil)
+            self.pressSplitKey(in: self.browser)
             guard let searchPane = self.browser.otherPane else { self.failures.append("Could not split search tab"); self.finish(); return }
             self.waitUntil({ searchPane.search == nil && !self.browser.isLoading }) {
                 self.expect(searchPane.isSearch && searchPane.searchField.stringValue == "needle" && searchPane.entries.count == 1, "Split lost active search")
                 searchPane.closeCurrentTab(nil)
                 self.expect(owner.panes.count == 1 && self.browser.tabs.count == 1, "Closing last pane tab did not collapse split")
                 self.chooseSearchScope(false, in: self.browser)
-                self.browser.splitTab(nil)
+                self.pressSplitKey(in: self.browser)
                 guard let duplicate = self.browser.otherPane else { self.failures.append("Single tab cannot split"); self.finish(); return }
                 self.expect(!duplicate.searchIncludesSubfolders, "Splitting lost search scope")
                 self.expect(duplicate.current == self.browser.current && duplicate.tabs[0].id != self.browser.tabs[0].id, "Single-tab split did not create independent tab")

@@ -1,6 +1,6 @@
-# QE 0.7.1 verification
+# QE 0.7.2 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Version 0.7.1 passed 18 core scenarios in debug, the full UI suite including Command-based tab shortcuts, and the release build. Core scenarios also passed in release mode before this shortcut-only change. Earlier focused checks, failures, historical measurements, and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Version 0.7.2 passed 18 core scenarios in debug, the full UI suite including tab and Split shortcuts, and the release build. Core scenarios also passed in release mode before this shortcut-only change. Earlier focused checks, failures, historical measurements, and volume checks are identified separately below.
 
 ## Current checks
 
@@ -8,12 +8,12 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Ve
 | --- | --- |
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
-| 18 file-operation and settings scenarios | No failures in debug; release scenarios passed before the 0.7.1 shortcut-only change |
+| 18 file-operation and settings scenarios | No failures in debug; release scenarios passed before the 0.7.2 shortcut-only change |
 | Applications and Desktop sidebar | Verified in 0.6.5: with hidden files disabled, the actual QE controllers matched Finder's 75 Applications entries and 21 Utilities entries. Checked Desktop, a disposable app launch, back/forward, tabs, Split navigation and saved pane paths. Report, screenshot and local runner: `.build/qe-007-ui/`. |
 | Merged application folders | Fixtures cover duplicate names, Utilities, hidden files, Safari's hidden compatibility symlink, both search scopes, cancellation and exclusion of bundle contents. File operations retain the real source URLs. User Applications and unrelated folders are not merged. |
 | Compact file rows | 20 pt rows with native alternating backgrounds; inspected light/dark renders with one pane and Split. Text, icons, parent row, hidden files, Unicode names, and active/inactive selections remain readable. The focused geometry check passed after correcting it to use icon alignment bounds rather than the larger SF Symbol view frame. Captures and the local runner are in `.build/qe-006-ui/`. |
 | Search on window activation | A focused AppKit check passed for running and completed searches, preserved results and selection, explicit Refresh restarting the search, and normal directories refreshing. It calls the window activation handler directly; the new search assertions failed before the fix. |
-| Debug-only UI checks | Verified in 0.6.3: debug retains the UI runner; release has no `UICheck` symbols or test launch/report/preferences markers. Both 0.7.1 bundle version fields were checked against `VERSION`. |
+| Debug-only UI checks | Verified in 0.6.3: debug retains the UI runner; release has no `UICheck` symbols or test launch/report/preferences markers. Both 0.7.2 bundle version fields were checked against `VERSION`. |
 | Top-level selection | Duplicates, nested folders, similar prefixes, symbolic links, missing ancestors, root paths, ordering, and cancellation checked; 1,728 additional input combinations matched the previous implementation |
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
@@ -25,6 +25,7 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Ve
 | Cross-window Cut/Paste | File moved with contents preserved, using a private test pasteboard |
 | Operations and window lifecycle | Detaching disabled during a file operation; Quit blocked when another window has an operation |
 | Split panes | Tab context menu splits an inactive or searching tab; history, selection, and sorting preserved; single-tab split creates an independent tab; menu commands follow pane focus |
+| Split shortcuts | Native menu key equivalents exercise ⌘D for the active search tab and a single tab, plus ⌘⇧D to merge panes with all tab IDs preserved. |
 | Split lifecycle | Both panes and focused pane restored; merging preserves all tabs; closing or detaching the last tab collapses the pane; a busy pane cannot be removed or merged |
 | Function keys | F2 renames a fixture; F3 previews the selected file in either pane; F5 copies left to right and F6 moves right to left with content checks; F8 requests Trash confirmation and cancellation preserves the file |
 | Keyboard navigation | Window-dispatched key events verify Tab focus in both directions, pane highlighting, command routing and preserved selection; Tab in search retains normal focus traversal. Command + 1…0 selects all ten tabs in each pane without changing the other pane. Current and absent tab shortcuts preserve search; choosing the current tab preserves editor focus. Return opens a folder with Caps Lock on and a document through its saved application; keypad Enter opens the parent row; empty selection does nothing. |

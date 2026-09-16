@@ -38,6 +38,8 @@ extension BrowserController {
                 item("Refresh", #selector(refresh(_:)), "r"), item("Go to Path", #selector(focusPath(_:)), "l"),
                 item("Search by Name", #selector(focusSearch(_:)), "f"), item("Show in Folder", #selector(revealSelected(_:)))])
             let windowMenu = NSMenu(title: "Window")
+            windowMenu.addItem(item("Split Tab", #selector(splitTab(_:)), "d"))
+            windowMenu.addItem(item("Close Split", #selector(closeSplit(_:)), "D", modifiers: [.command, .shift]))
             windowMenu.addItem(item("Move Tab to New Window", #selector(moveTabToWindow(_:))))
             windowMenu.addItem(.separator())
             windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
