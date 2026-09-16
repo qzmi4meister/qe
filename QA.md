@@ -1,6 +1,6 @@
-# QE 0.6.3 verification
+# QE 0.6.4 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Version 0.6.3 checks cover search preservation on window activation, debug-only UI checks, core scenarios, and the release build. Other UI results below are retained from 0.6.2; the full 0.6.3 UI run failed as described under Practical limits. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Version 0.6.4 passed the core scenarios and full UI suite, the release build, and a focused visual check of compact rows in light and dark appearances, with one pane and Split. Earlier failures, historical measurements, and volume checks are identified separately below.
 
 ## Current checks
 
@@ -8,9 +8,10 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Ve
 | --- | --- |
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
-| 17 file-operation and settings scenarios | No failures in debug and release builds |
+| 17 file-operation and settings scenarios | No failures in debug (0.6.4) or release (0.6.3; core code unchanged) |
+| Compact file rows | 20 pt rows with native alternating backgrounds; inspected light/dark renders with one pane and Split. Text, icons, parent row, hidden files, Unicode names, and active/inactive selections remain readable. The focused geometry check passed after correcting it to use icon alignment bounds rather than the larger SF Symbol view frame. Captures and the local runner are in `.build/qe-006-ui/`. |
 | Search on window activation | A focused AppKit check passed for running and completed searches, preserved results and selection, explicit Refresh restarting the search, and normal directories refreshing. It calls the window activation handler directly; the new search assertions failed before the fix. |
-| Debug-only UI checks | Debug retains the UI runner. The release binary has no `UICheck` symbols or `--ui-check`, `--open-check-app`, `--hold`, report-name, or test-preferences markers. Both bundle version fields are 0.6.3. |
+| Debug-only UI checks | Verified in 0.6.3: debug retains the UI runner; release has no `UICheck` symbols or test launch/report/preferences markers. Both 0.6.4 bundle version fields were checked against `VERSION`. |
 | Top-level selection | Duplicates, nested folders, similar prefixes, symbolic links, missing ancestors, root paths, ordering, and cancellation checked; 1,728 additional input combinations matched the previous implementation |
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |

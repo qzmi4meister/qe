@@ -147,8 +147,8 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         sidebarWidth.isActive = true
 
         table.delegate = self; table.dataSource = self
-        table.rowHeight = 30; table.intercellSpacing = NSSize(width: 12, height: 0)
-        table.usesAlternatingRowBackgroundColors = false
+        table.rowHeight = 20; table.intercellSpacing = NSSize(width: 12, height: 0)
+        table.usesAlternatingRowBackgroundColors = true
         table.allowsMultipleSelection = true; table.allowsColumnReordering = false
         table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         table.style = .plain
