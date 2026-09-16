@@ -115,7 +115,7 @@ final class BrowserWindow: NSWindow {
             let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
             if event.keyCode == 48, modifiers.isEmpty, firstResponder is FileTable,
                let other = owner.activePane.otherPane, makeFirstResponder(other.table) { return }
-            if modifiers == .control, let key = event.charactersIgnoringModifiers,
+            if modifiers == .command, let key = event.charactersIgnoringModifiers,
                key.count == 1, let digit = Int(key), (0...9).contains(digit) {
                 let index = digit == 0 ? 9 : digit - 1
                 let pane = owner.activePane

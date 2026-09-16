@@ -38,29 +38,29 @@ extension UICheck {
             pane.tabs += (1...9).map { BrowserTab($0 == 9 ? directory.appendingPathComponent("Documents") : pane.current) }
             pane.rebuildTabs()
             for (index, key) in keys.enumerated() {
-                pressKey(key.0, code: key.1, modifiers: .control, in: pane)
-                expect(pane.active == index && owner.activePane === pane, "Control + \(key.0) chose wrong tab or pane")
+                pressKey(key.0, code: key.1, modifiers: .command, in: pane)
+                expect(pane.active == index && owner.activePane === pane, "Command + \(key.0) chose wrong tab or pane")
                 expect(pane.otherPane?.active == 0, "Tab shortcut changed the other pane")
             }
-            expect(pane.current == directory.appendingPathComponent("Documents"), "Control + 0 did not navigate to tenth tab")
+            expect(pane.current == directory.appendingPathComponent("Documents"), "Command + 0 did not navigate to tenth tab")
             pane.tabs = original
             pane.active = 0
             pane.rebuildTabs()
             pane.reload()
-            pressKey("0", code: 29, modifiers: .control, in: pane)
+            pressKey("0", code: 29, modifiers: .command, in: pane)
             expect(pane.active == 0 && pane.tabs.count == 1, "Missing tab shortcut changed tabs")
         }
         browser.focusPath(nil)
         let editor = window.firstResponder
-        pressKey("1", code: 18, modifiers: .control, in: browser)
+        pressKey("1", code: 18, modifiers: .command, in: browser)
         expect(window.firstResponder === editor, "Current tab shortcut stole editor focus")
         window.makeFirstResponder(browser.table)
         waitUntil({ !self.browser.isLoading && !right.isLoading }) {
             self.browser.searchField.stringValue = "Notes"
             self.browser.startSearch(nil)
             self.waitUntil({ self.browser.search == nil }) {
-                self.pressKey("1", code: 18, modifiers: .control, in: self.browser)
-                self.pressKey("0", code: 29, modifiers: .control, in: self.browser)
+                self.pressKey("1", code: 18, modifiers: .command, in: self.browser)
+                self.pressKey("0", code: 29, modifiers: .command, in: self.browser)
                 self.expect(self.browser.isSearch && self.browser.searchField.stringValue == "Notes",
                             "Current or missing tab shortcut cleared search")
                 self.browser.navigate(directory)

@@ -89,7 +89,7 @@ Double-clicking a ZIP or 7z archive extracts it into a folder beside the archive
 | New file | ⌘N |
 | New / close tab | ⌘T / ⌘W |
 | Switch active pane in Split (from the file list) | Tab |
-| Select tab 1–10 in the active pane | Control + 1…9, 0 |
+| Select tab 1–10 in the active pane | ⌘1…9, ⌘0 |
 | New window | ⌘⌥N |
 | Go to path | ⌘L |
 | Search by name | ⌘F |
