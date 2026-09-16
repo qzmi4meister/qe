@@ -379,8 +379,12 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
                 self.table.selectRowIndexes(self.rows(matching: urls), byExtendingSelection: false)
                 if self.revealURL != nil, let index = self.table.selectedRowIndexes.first { self.table.scrollRowToVisible(index) }
                 else {
-                    self.scroll.contentView.scroll(to: NSPoint(x: 0, y: self.tabs[self.active].scroll - (self.table.headerView?.frame.height ?? 0)))
-                    self.scroll.reflectScrolledClipView(self.scroll.contentView)
+                    self.scroll.layoutSubtreeIfNeeded()
+                    let clip = self.scroll.contentView
+                    var bounds = clip.bounds
+                    bounds.origin = NSPoint(x: 0, y: self.tabs[self.active].scroll - (self.table.headerView?.frame.height ?? 0))
+                    clip.scroll(to: clip.constrainBoundsRect(bounds).origin)
+                    self.scroll.reflectScrolledClipView(clip)
                 }
                 self.revealURL = nil; self.updateStatus()
             }
