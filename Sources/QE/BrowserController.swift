@@ -259,6 +259,8 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         }
         heading("Folders")
         place("Home", "house", FileManager.default.homeDirectoryForCurrentUser)
+        if let applications = FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask).first { place("Applications", "app.badge", applications) }
+        if let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first { place("Desktop", "menubar.dock.rectangle", desktop) }
         if let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first { place("Downloads", "arrow.down.circle", downloads) }
         heading("Disks")
         place("Macintosh HD", "internaldrive", URL(fileURLWithPath: "/"))
@@ -392,7 +394,8 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         watch(directory)
         updateStatus()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result { Files.sorted(try Files.list(directory, hidden: hidden), key: key, ascending: direction) }
+            let result = Result { Files.sorted(try Files.list(directory, hidden: hidden,
+                merging: Files.systemApplicationsDirectories(for: directory)), key: key, ascending: direction) }
             DispatchQueue.main.async {
                 guard let self, self.generation == request else { return }
                 self.isLoading = false
@@ -466,7 +469,8 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         entries = []; hasParentRow = false; table.reloadData(); table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden = !recursive
         updateStatus()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result { try Files.search(in: directory, query: query, hidden: hidden, recursive: recursive, cancellation: token) { batch in
+            let result = Result { try Files.search(in: directory, query: query, hidden: hidden, recursive: recursive,
+                merging: Files.systemApplicationsDirectories(for: directory), cancellation: token) { batch in
                 DispatchQueue.main.async {
                     guard let self, self.generation == request else { return }
                     let selection = Set(self.selected.map(\.path))

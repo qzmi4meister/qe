@@ -74,10 +74,35 @@ public enum Files {
         return url
     }
 
-    public static func list(_ directory: URL, hidden: Bool) throws -> [FileEntry] {
+    // Finder combines Applications with the system apps, including Safari's cryptex.
+    public static func systemApplicationsDirectories(for directory: URL) -> [URL] {
+        let path = directory.standardizedFileURL.path
+        guard path == "/Applications" || path.hasPrefix("/Applications/") else { return [] }
+        return ["/System", "/System/Cryptexes/App/System"].compactMap { prefix in
+            let system = URL(fileURLWithPath: prefix + path, isDirectory: true)
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: system.path, isDirectory: &isDirectory) && isDirectory.boolValue ? system : nil
+        }
+    }
+
+    public static func list(_ directory: URL, hidden: Bool, merging systemDirectories: [URL] = []) throws -> [FileEntry] {
         let urls = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: FileEntry.keys,
             options: hidden ? [] : [.skipsHiddenFiles])
-        return urls.compactMap { try? FileEntry(url: $0) }
+        var entries = urls.compactMap { try? FileEntry(url: $0) }
+        guard !systemDirectories.isEmpty else { return entries }
+        var indices = Dictionary(uniqueKeysWithValues: entries.enumerated().map { ($0.element.name, $0.offset) })
+        for systemDirectory in systemDirectories {
+            for entry in try list(systemDirectory, hidden: hidden) {
+                if let index = indices[entry.name] {
+                    // Prefer the visible app over its hidden compatibility symlink.
+                    if entries[index].isHidden && entries[index].isLink && !entry.isHidden { entries[index] = entry }
+                } else {
+                    indices[entry.name] = entries.count
+                    entries.append(entry)
+                }
+            }
+        }
+        return entries
     }
 
     public static func sorted(_ values: [FileEntry], key: String = "name", ascending: Bool = true) -> [FileEntry] {
@@ -90,25 +115,34 @@ public enum Files {
         }
     }
 
-    public static func search(in directory: URL, query: String, hidden: Bool, recursive: Bool = true, cancellation: Cancellation,
+    public static func search(in directory: URL, query: String, hidden: Bool, recursive: Bool = true,
+                              merging systemDirectories: [URL] = [], cancellation: Cancellation,
                               batch: ([FileEntry]) -> Void) throws -> Int {
         var unreadable = 0
         var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
         if !recursive { options.insert(.skipsSubdirectoryDescendants) }
         if !hidden { options.insert(.skipsHiddenFiles) }
-        guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: FileEntry.keys,
-            options: options, errorHandler: { _, _ in unreadable += 1; return !cancellation.isCancelled }) else {
-            throw FileProblem.message("The folder could not be read for search.")
-        }
         var found: [FileEntry] = []
+        var seen: Set<String> = []
         var lastDelivery = Date()
-        for case let url as URL in enumerator {
+        for source in [directory] + systemDirectories {
+            let root = source.resolvingSymlinksInPath()
             try cancellation.check()
-            if url.lastPathComponent.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil,
-               let entry = try? FileEntry(url: url) { found.append(entry) }
-            if found.count >= 100 || Date().timeIntervalSince(lastDelivery) > 0.15 {
-                if !found.isEmpty { batch(found); found.removeAll(keepingCapacity: true) }
-                lastDelivery = Date()
+            guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: FileEntry.keys,
+                options: options, errorHandler: { _, _ in unreadable += 1; return !cancellation.isCancelled }) else {
+                throw FileProblem.message("The folder could not be read for search.")
+            }
+            for case let url as URL in enumerator {
+                try cancellation.check()
+                if url.lastPathComponent.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil,
+                   let entry = try? FileEntry(url: url),
+                   (systemDirectories.isEmpty || seen.insert(url.standardizedFileURL.pathComponents.dropFirst(root.pathComponents.count).joined(separator: "/")).inserted) {
+                    found.append(entry)
+                }
+                if found.count >= 100 || Date().timeIntervalSince(lastDelivery) > 0.15 {
+                    if !found.isEmpty { batch(found); found.removeAll(keepingCapacity: true) }
+                    lastDelivery = Date()
+                }
             }
         }
         try cancellation.check()

@@ -25,8 +25,6 @@ brew install --cask qzmi4meister/tap/qe
 open -a QE
 ```
 
-The application is signed with Developer ID and notarized by Apple.
-
 Update:
 
 ```sh
@@ -52,6 +50,7 @@ For manual installation, [Releases](https://github.com/qzmi4meister/qe/releases)
 - **Path** is editable at the top of the window. The adjacent button copies the current path; the context menu copies paths of selected items.
 - **Go Up**: double-clicking the `..` row opens the parent folder. The row stays above files when sorting and is excluded from file operations. It is hidden at the filesystem root and in search results.
 - **Hidden Files** are shown on first launch. The visibility setting is saved.
+- **Applications** in the sidebar combines shared and system applications like Finder, including Safari; **Utilities** remains a folder. Apps in `~/Applications` are separate. **Desktop** opens the current user's desktop folder.
 - **External disks** appear in the sidebar. Removable volumes have an eject button.
 
 ## Working with files

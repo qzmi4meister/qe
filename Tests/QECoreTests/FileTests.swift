@@ -38,6 +38,57 @@ final class FileTests {
         expectFalse(Files.exists(root.appendingPathComponent("missing")))
     }
 
+    func testMergedApplications() throws {
+        let local = try folder("Applications"), system = try folder("System Applications")
+        let localUtilities = try Files.create(name: "Utilities", in: local, directory: true)
+        let systemUtilities = try Files.create(name: "Utilities", in: system, directory: true)
+        let sharedApp = try Files.create(name: "Shared.app", in: local, directory: true)
+        _ = try Files.create(name: "Shared.app", in: system, directory: true)
+        let systemApp = try Files.create(name: "System.app", in: system, directory: true)
+        let localTool = try Files.create(name: "Local Tool.app", in: localUtilities, directory: true)
+        let systemTool = try Files.create(name: "System Tool.app", in: systemUtilities, directory: true)
+        let hidden = try Files.create(name: ".Hidden.app", in: system, directory: true)
+        _ = try file("inside.app", in: systemApp)
+        for app in [sharedApp, system.appendingPathComponent("Shared.app"), systemApp, localTool, systemTool, hidden] {
+            let contents = app.appendingPathComponent("Contents")
+            try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+            let plist = try PropertyListSerialization.data(fromPropertyList: ["CFBundlePackageType": "APPL", "CFBundleIdentifier": "local.qe.fixture", "CFBundleExecutable": "Fixture"], format: .xml, options: 0)
+            try plist.write(to: contents.appendingPathComponent("Info.plist"))
+        }
+        let expected = Set([localUtilities, sharedApp, systemApp].map { $0.resolvingSymlinksInPath().path })
+        expectEqual(Set(try Files.list(local, hidden: false, merging: [system]).map { $0.url.standardizedFileURL.path }), expected)
+        expectTrue(try Files.list(local, hidden: true, merging: [system]).contains { $0.url.standardizedFileURL.path == hidden.resolvingSymlinksInPath().path })
+        expectEqual(Set(try Files.list(localUtilities, hidden: false, merging: [systemUtilities]).map { $0.url.standardizedFileURL.path }), Set([localTool, systemTool].map { $0.resolvingSymlinksInPath().path }))
+        expectEqual(Set(try Files.list(local, hidden: false).map { $0.url.standardizedFileURL.path }), Set([localUtilities, sharedApp].map { $0.resolvingSymlinksInPath().path }))
+
+        var found: [FileEntry] = []
+        _ = try Files.search(in: local, query: ".app", hidden: false, recursive: false, merging: [system], cancellation: Cancellation()) { found += $0 }
+        expectEqual(Set(found.map { $0.url.standardizedFileURL.path }), Set([sharedApp, systemApp].map { $0.resolvingSymlinksInPath().path }))
+        found = []
+        _ = try Files.search(in: local, query: ".app", hidden: false, merging: [system], cancellation: Cancellation()) { found += $0 }
+        expectEqual(Set(found.map { $0.url.standardizedFileURL.path }), Set([sharedApp, systemApp, localTool, systemTool].map { $0.resolvingSymlinksInPath().path }))
+        expectEqual(found.count, 4)
+        let cryptex = try folder("Cryptex Applications")
+        let safari = try Files.create(name: "Safari.app", in: cryptex, directory: true)
+        let proxy = local.appendingPathComponent("Safari.app")
+        try FileManager.default.createSymbolicLink(at: proxy, withDestinationURL: safari)
+        expectEqual(lchflags(proxy.path, UInt32(UF_HIDDEN)), 0)
+        for hidden in [false, true] {
+            let safariEntries = try Files.list(local, hidden: hidden, merging: [system, cryptex]).filter { $0.name == "Safari.app" }
+            expectEqual(safariEntries.count, 1)
+            expectEqual(safariEntries.first?.url.standardizedFileURL.path, safari.standardizedFileURL.path)
+        }
+        found = []
+        _ = try Files.search(in: local, query: "Safari", hidden: false, merging: [system, cryptex], cancellation: Cancellation()) { found += $0 }
+        expectEqual(found.map { $0.url.standardizedFileURL.path }, [safari.standardizedFileURL.path])
+        let cancelled = Cancellation(); cancelled.cancel()
+        expectError(try Files.search(in: local, query: ".app", hidden: false, merging: [system], cancellation: cancelled) { _ in })
+        expectTrue(Files.systemApplicationsDirectories(for: URL(fileURLWithPath: "/Applications")).contains { $0.path == "/System/Applications" })
+        expectTrue(Files.systemApplicationsDirectories(for: URL(fileURLWithPath: "/Applications/Utilities")).contains { $0.path == "/System/Applications/Utilities" })
+        expectTrue(Files.systemApplicationsDirectories(for: URL(fileURLWithPath: "/Applications-other")).isEmpty)
+        expectTrue(Files.systemApplicationsDirectories(for: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications")).isEmpty)
+    }
+
     func testTransferConflictsAndSourcePreservation() throws {
         let source = try file("item.txt")
         let destination = try folder("destination")
@@ -434,6 +485,7 @@ func unwrap<T>(_ value: T?) throws -> T {
         let cases: [(String, () throws -> Void)] = [
             ("create, rename, hidden and no overwrite", tests.testCreateRenameHiddenAndNoOverwrite),
             ("dangling symlink", tests.testDanglingLinkIsNotOverwritten),
+            ("Finder-style Applications, Utilities and search", tests.testMergedApplications),
             ("transfer and conflicts", tests.testTransferConflictsAndSourcePreservation),
             ("cancelled transfer", tests.testCancellationDoesNotLoseSourceOrDestination),
             ("rollback after failed replacement", tests.testFailedReplacementRestoresMovedSource),
