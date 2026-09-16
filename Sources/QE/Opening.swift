@@ -20,15 +20,32 @@ extension BrowserController {
     }
 
     func openFile(_ file: URL) {
-        if isDocument(file), associations.application(for: file) != nil {
+        let document = isDocument(file)
+        if document, associations.application(for: file) != nil {
             guard let application = associatedApplication(for: file) else {
                 chooseApplication(for: file, explanation: "The saved application was not found. Choose another application.")
                 return
             }
             launchDocument(file, with: application, remember: false)
+        } else if document, ["zip", "7z"].contains(file.pathExtension.lowercased()) {
+            openArchive(file)
         } else if !NSWorkspace.shared.open(file) {
-            if isDocument(file) { chooseApplication(for: file, explanation: "The default application could not open the file.") }
+            if document { chooseApplication(for: file, explanation: "The default application could not open the file.") }
             else { showError(FileProblem.message("Could not open \(file.lastPathComponent).")) }
+        }
+    }
+
+    func openArchive(_ archive: URL) {
+        let tabID = tabs[active].id
+        let directory = current
+        runOperation("Extracting…") { [weak self] token, _ in
+            let destination = Files.availableName(for: archive.deletingPathExtension())
+            try Archives.extract(archive, to: destination, cancellation: token)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.tabs[self.active].id == tabID, self.current == directory else { return }
+                self.navigate(destination)
+            }
+            return "Extracted: \(destination.lastPathComponent)"
         }
     }
 

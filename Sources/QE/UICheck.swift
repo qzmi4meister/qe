@@ -25,6 +25,7 @@ final class UICheck {
     }
     func start() {
         retained = self
+        BrowserController.clipboard = NSPasteboard.withUniqueName()
         let pulse = DispatchSource.makeTimerSource(queue: .main)
         pulse.schedule(deadline: .now(), repeating: .milliseconds(20))
         pulse.setEventHandler { [weak self] in
@@ -122,7 +123,177 @@ final class UICheck {
         catch { failures.append(error.localizedDescription); finish(); return }
         waitUntil({ self.browser.entries.contains { $0.name == "watcher-check.txt" } }) {
             self.browser.closeTab(at: 1)
-            self.waitUntil({ !self.browser.isLoading }) { self.checkOpening() }
+            self.waitUntil({ !self.browser.isLoading }) { self.checkWindows(directory) }
+        }
+    }
+    func checkWindows(_ directory: URL) {
+        guard let app = browser.appDelegate else { failures.append("Missing window owner"); finish(); return }
+        do {
+            for index in 0..<60 {
+                try Data().write(to: directory.appendingPathComponent("Projects/window-\(index).txt"))
+            }
+        } catch { failures.append(error.localizedDescription); finish(); return }
+        browser.newTab(nil)
+        browser.navigate(directory.appendingPathComponent("Projects"))
+        waitUntil({ !self.browser.isLoading }) {
+            guard let index = self.browser.entries.firstIndex(where: { $0.name == "needle.txt" }) else {
+                self.failures.append("Window fixture missing"); self.finish(); return
+            }
+            let file = self.browser.entries[index].url
+            self.browser.table.selectRowIndexes(IndexSet(integer: self.browser.row(forEntry: index)), byExtendingSelection: false)
+            if let row = self.browser.table.selectedRowIndexes.first { self.browser.table.scrollRowToVisible(row) }
+            self.browser.selectTab(0)
+            self.waitUntil({ !self.browser.isLoading }) {
+                let tab = self.browser.tabs[1]
+                let button = self.browser.tabsStack.arrangedSubviews[1] as! TabButton
+                guard let item = button.menu?.items.first else { self.failures.append("Tab menu missing"); self.finish(); return }
+                self.expect(self.browser.validateMenuItem(item), "Move inactive tab is disabled")
+                NSApp.sendAction(item.action!, to: item.target, from: item)
+                guard let other = app.browsers.last, other !== self.browser else { self.failures.append("Tab did not create window"); self.finish(); return }
+                self.waitUntil({ !other.isLoading }) {
+                    self.expect(app.browsers.count == 2 && self.browser.tabs.count == 1, "Tab was copied instead of moved")
+                    self.expect(other.tabs[0].id == tab.id && other.tabs[0].history == tab.history && other.tabs[0].position == tab.position, "Tab history was lost")
+                    self.expect(other.selected.map(\.path) == [file.path], "Moved tab lost selection: saved=\(tab.selection), actual=\(other.selected.map(\.path))")
+                    self.expect(other.sortKey == self.browser.sortKey && other.ascending == self.browser.ascending, "Moved tab lost sorting")
+                    self.expect(tab.scroll > 0 && abs(other.scroll.contentView.bounds.origin.y + (other.table.headerView?.frame.height ?? 0) - tab.scroll) < 1, "Moved tab lost scroll position")
+                    self.expect(self.browser.current == directory, "Moving inactive tab changed source directory")
+                    self.expect(!other.validateMenuItem(item), "Single tab can be detached")
+                    self.expect(NSApp.target(forAction: #selector(BrowserController.newTab(_:))) as? BrowserController === other, "Menu does not target new window")
+                    NSApp.sendAction(#selector(BrowserController.newTab(_:)), to: nil, from: nil)
+                    self.expect(other.tabs.count == 2 && self.browser.tabs.count == 1, "Menu changed wrong window")
+                    self.browser.window?.makeKeyAndOrderFront(nil)
+                    NSApp.sendAction(#selector(BrowserController.newTab(_:)), to: nil, from: nil)
+                    self.expect(self.browser.tabs.count == 2 && other.tabs.count == 2, "Menu did not follow window focus")
+                    self.browser.closeCurrentTab(nil)
+                    other.window?.performClose(nil)
+                    self.expect(app.browsers.count == 1 && self.browser.window?.isVisible == true, "Closing window affected another window")
+                    self.waitUntil({ !self.browser.isLoading }) { self.checkSearchWindow(directory) }
+                }
+            }
+        }
+    }
+    func checkSearchWindow(_ directory: URL) {
+        let app = browser.appDelegate!
+        browser.newTab(nil)
+        browser.searchField.stringValue = "needle"
+        browser.startSearch(nil)
+        waitUntil({ self.browser.search == nil }) {
+            self.browser.moveTabToWindow(nil)
+            let other = app.browsers.last!
+            self.waitUntil({ other.search == nil && !self.browser.isLoading }) {
+                self.expect(other !== self.browser && other.isSearch && other.searchField.stringValue == "needle", "Moving active tab lost search")
+                self.expect(other.entries.first?.name == "needle.txt", "Moved search results missing")
+                self.expect(self.browser.tabs.count == 1 && !self.browser.isSearch, "Source search not cleared")
+                other.window?.performClose(nil)
+                self.browser.window?.makeKeyAndOrderFront(nil)
+                NSApp.sendAction(#selector(BrowserController.newWindow(_:)), to: nil, from: nil)
+                let destination = app.browsers.last!
+                self.expect(app.browsers.count == 2 && destination.current == directory, "New Window did not open current folder")
+                destination.navigate(directory.appendingPathComponent("Photos"))
+                self.waitUntil({ !destination.isLoading }) { self.checkWindowTransfer(destination, directory: directory) }
+            }
+        }
+    }
+    func checkWindowTransfer(_ destination: BrowserController, directory: URL) {
+        let source = directory.resolvingSymlinksInPath().appendingPathComponent("cross-window.txt")
+        do { try Data("window transfer".utf8).write(to: source) }
+        catch { failures.append(error.localizedDescription); finish(); return }
+        browser.reload()
+        waitUntil({ !self.browser.isLoading }) {
+            guard let index = self.browser.entries.firstIndex(where: { $0.name == source.lastPathComponent }) else {
+                self.failures.append("Move fixture missing"); self.finish(); return
+            }
+            let file = self.browser.entries[index].url
+            self.browser.table.selectRowIndexes(IndexSet(integer: self.browser.row(forEntry: index)), byExtendingSelection: false)
+            self.browser.window?.makeFirstResponder(self.browser.table)
+            self.browser.cutFiles(nil)
+            self.expect(BrowserController.cutURLs == [file], "Cut did not select fixture")
+            self.expect(destination.clipboardURLs() == [file], "Pasteboard does not contain cut file")
+            destination.pasteFiles(nil)
+            self.expect(destination.operation != nil, "Paste did not start operation; responder=\(String(describing: destination.window?.firstResponder))")
+            self.waitUntil({ destination.operation == nil && !destination.isLoading }) {
+                self.expect(!FileManager.default.fileExists(atPath: source.path), "Cut between windows copied instead of moving")
+                self.expect((try? Data(contentsOf: destination.current.appendingPathComponent(source.lastPathComponent))) == Data("window transfer".utf8), "Cross-window move lost contents")
+                self.checkWindowRestoration(destination)
+            }
+        }
+    }
+    func checkWindowRestoration(_ other: BrowserController) {
+        let app = browser.appDelegate!
+        other.newTab(nil)
+        app.saveWindows()
+        let saved = browser.preferences.array(forKey: "windows") as! [[String: Any]]
+        expect(saved.count == 2, "Window persistence overwrote another window")
+        let restoreSuite = suite + ".restore"
+        let restored = AppDelegate()
+        restored.preferences = UserDefaults(suiteName: restoreSuite)!
+        restored.preferences.set(saved, forKey: "windows")
+        restored.restoreWindows()
+        expect(restored.browsers.map { $0.tabs.map(\.url) } == app.browsers.map { $0.tabs.map(\.url) }, "Restored window tabs differ")
+        expect(restored.browsers.map(\.active) == app.browsers.map(\.active), "Restored active tabs differ")
+        for window in restored.browsers { window.window?.performClose(nil) }
+        expect(restored.browsers.isEmpty, "Closed windows remain retained")
+        expect(restored.preferences.array(forKey: "windows")?.count == 1, "Last window not saved for reopening")
+        restored.preferences.removePersistentDomain(forName: restoreSuite)
+        restored.preferences.set([browser.current.path, other.current.path], forKey: "tabs")
+        restored.preferences.set(1, forKey: "activeTab")
+        restored.restoreWindows()
+        expect(restored.browsers.count == 1 && restored.browsers[0].tabs.count == 2 && restored.browsers[0].active == 1, "Legacy tabs did not migrate")
+        for window in restored.browsers { window.window?.performClose(nil) }
+        restored.preferences.removePersistentDomain(forName: restoreSuite)
+
+        other.operation = Cancellation()
+        let move = NSMenuItem(title: "", action: #selector(BrowserController.moveTabToWindow(_:)), keyEquivalent: "")
+        other.newTab(nil)
+        expect(!other.validateMenuItem(move), "Busy window allows detaching tab")
+        let dismiss = Timer(timeInterval: 0.1, repeats: false) { _ in NSApp.abortModal() }
+        RunLoop.main.add(dismiss, forMode: .modalPanel)
+        browser.window?.makeKeyAndOrderFront(nil)
+        expect(app.applicationShouldTerminate(NSApp) == .terminateCancel, "Quit ignored an operation in another window")
+        dismiss.invalidate()
+        other.operation = nil
+        other.window?.performClose(nil)
+        expect(app.browsers.count == 1 && browser.preferences.array(forKey: "windows")?.count == 1, "Closed window remains in session")
+        browser.window?.makeKeyAndOrderFront(nil)
+        waitUntil({ !self.browser.isLoading }) { self.checkArchiveOpening(self.browser.current) }
+    }
+    func checkArchiveOpening(_ directory: URL) {
+        let archive = directory.appendingPathComponent("sample.ZIP")
+        let existing = directory.appendingPathComponent("sample")
+        let source = directory.appendingPathComponent("Notes.md")
+        do {
+            try Archives.create([source], at: archive, format: "zip", cancellation: Cancellation())
+            try FileManager.default.createDirectory(at: existing, withIntermediateDirectories: false)
+            try Data("keep".utf8).write(to: existing.appendingPathComponent("keep.txt"))
+        } catch { failures.append(error.localizedDescription); finish(); return }
+        let archiveData = try? Data(contentsOf: archive)
+        browser.reload()
+        waitUntil({ !self.browser.isLoading }) {
+            guard let row = self.browser.entries.firstIndex(where: { $0.name == archive.lastPathComponent }) else {
+                self.failures.append("Archive fixture missing"); self.finish(); return
+            }
+            self.browser.table.selectRowIndexes(IndexSet(integer: self.browser.row(forEntry: row)), byExtendingSelection: false)
+            self.browser.openSelected(nil)
+            self.expect(self.browser.operation != nil, "ZIP was not opened by QE")
+            self.waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
+                self.expect(self.browser.current.lastPathComponent == "sample (2)", "Extracted directory did not open in QE")
+                self.expect((try? Data(contentsOf: self.browser.current.appendingPathComponent("Notes.md"))) == (try? Data(contentsOf: source)), "Extracted contents differ")
+                self.expect((try? Data(contentsOf: existing.appendingPathComponent("keep.txt"))) == Data("keep".utf8), "Extraction overwrote existing folder")
+                self.expect((try? Data(contentsOf: archive)) == archiveData, "Opening modified archive")
+                self.browser.history(-1)
+                self.waitUntil({ !self.browser.isLoading }) {
+                    self.expect(self.browser.current == directory, "Back from extracted folder failed")
+                    self.browser.openFile(archive)
+                    let photos = directory.appendingPathComponent("Photos").standardizedFileURL
+                    self.browser.navigate(photos)
+                    self.waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
+                        self.expect(self.browser.current == photos, "Extraction interrupted later navigation")
+                        self.expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("sample (3)/Notes.md").path), "Repeated extraction failed")
+                        self.browser.navigate(directory)
+                        self.waitUntil({ !self.browser.isLoading }) { self.checkOpening() }
+                    }
+                }
+            }
         }
     }
     func checkOpening() {
@@ -144,27 +315,29 @@ final class UICheck {
         browser.launchDocument(file, with: application, remember: false) { error in
             self.expect(error == nil, "One-time opening failed: \(String(describing: error))")
             self.expect(self.browser.associations.application(for: file) == nil, "One-time opening changed association")
-            self.browser.launchDocument(file, with: application, remember: true) { error in
-                self.expect(error == nil, "Remembered opening failed: \(String(describing: error))")
-                self.expect(FileAssociations(preferences: UserDefaults(suiteName: self.suite)!).application(for: file)?.url.path == application.path, "Association was not persisted")
-                let second = self.browser.current.appendingPathComponent("another.TXT")
-                do { try Data("fixture".utf8).write(to: second) }
-                catch { self.failures.append(error.localizedDescription); self.finish(); return }
-                self.browser.openFile(second)
-                self.waitUntil({ received().contains(second.resolvingSymlinksInPath().path) }) {
-                    self.expect(received().filter { $0 == file.resolvingSymlinksInPath().path }.count == 2, "Receiver did not receive both explicit opens")
-                    self.browser.launchDocument(file, with: application.deletingLastPathComponent().appendingPathComponent("Missing.app"), remember: true) { error in
-                        self.expect(error != nil, "Missing application unexpectedly opened")
-                        self.expect(self.browser.associations.application(for: file)?.url.path == application.path, "Failure replaced remembered application")
-                        self.waitUntil({ !self.browser.isLoading }) {
-                            if let row = self.browser.entries.firstIndex(where: { $0.url.path == file.path }) {
-                                self.browser.table.selectRowIndexes(IndexSet(integer: self.browser.row(forEntry: row)), byExtendingSelection: false)
-                                self.browser.resetAssociation(nil)
-                                self.expect(self.browser.associations.application(for: second) == nil, "Reset did not clear extension association")
-                            } else { self.failures.append("Document missing after refresh") }
-                            NSApp.activate(ignoringOtherApps: true)
-                            self.checkApplicationChooser(file)
-                            self.finish()
+            self.waitUntil({ received().contains(file.resolvingSymlinksInPath().path) }) {
+                self.browser.launchDocument(file, with: application, remember: true) { error in
+                    self.expect(error == nil, "Remembered opening failed: \(String(describing: error))")
+                    self.expect(FileAssociations(preferences: UserDefaults(suiteName: self.suite)!).application(for: file)?.url.path == application.path, "Association was not persisted")
+                    let second = self.browser.current.appendingPathComponent("another.TXT")
+                    do { try Data("fixture".utf8).write(to: second) }
+                    catch { self.failures.append(error.localizedDescription); self.finish(); return }
+                    self.browser.openFile(second)
+                    self.waitUntil({ received().contains(second.resolvingSymlinksInPath().path) && received().filter { $0 == file.resolvingSymlinksInPath().path }.count >= 2 }) {
+                        self.expect(received().filter { $0 == file.resolvingSymlinksInPath().path }.count == 2, "Receiver did not receive both explicit opens")
+                        self.browser.launchDocument(file, with: application.deletingLastPathComponent().appendingPathComponent("Missing.app"), remember: true) { error in
+                            self.expect(error != nil, "Missing application unexpectedly opened")
+                            self.expect(self.browser.associations.application(for: file)?.url.path == application.path, "Failure replaced remembered application")
+                            self.waitUntil({ !self.browser.isLoading }) {
+                                if let row = self.browser.entries.firstIndex(where: { $0.url.path == file.path }) {
+                                    self.browser.table.selectRowIndexes(IndexSet(integer: self.browser.row(forEntry: row)), byExtendingSelection: false)
+                                    self.browser.resetAssociation(nil)
+                                    self.expect(self.browser.associations.application(for: second) == nil, "Reset did not clear extension association")
+                                } else { self.failures.append("Document missing after refresh") }
+                                NSApp.activate(ignoringOtherApps: true)
+                                self.checkApplicationChooser(file)
+                                self.finish()
+                            }
                         }
                     }
                 }
@@ -196,6 +369,7 @@ final class UICheck {
     }
     func finish() {
         pulse?.cancel()
+        BrowserController.clipboard.releaseGlobally()
         if let index = CommandLine.arguments.firstIndex(of: "--open-check-app"), CommandLine.arguments.indices.contains(index + 1) {
             let path = URL(fileURLWithPath: CommandLine.arguments[index + 1]).resolvingSymlinksInPath().path
             for app in NSWorkspace.shared.runningApplications where app.bundleURL?.resolvingSymlinksInPath().path == path { app.terminate() }

@@ -1,6 +1,6 @@
-# QE 0.3.0 verification
+# QE 0.4.0 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 15.09.2026. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 16.09.2026 for 0.4.0, including multi-window support and archive opening. Historical measurements and volume checks are identified separately below.
 
 ## Current checks
 
@@ -12,10 +12,16 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 15.09.2026. Historical
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
 | Tabs, navigation, hidden files, search, revealing results, directory updates | No failures |
+| Independent windows | New Window opens the current folder; menu commands follow the focused window; closing one window preserves the other |
+| Moving tabs to windows | Active search and inactive tabs checked; history, selection, sorting, and scroll position preserved |
+| Window restoration | Window grouping and active tabs restored; legacy single-window preferences migrated; closed windows removed and last window saved |
+| Cross-window Cut/Paste | File moved with contents preserved, using a private test pasteboard |
+| Operations and window lifecycle | Detaching disabled during a file operation; Quit blocked when another window has an operation |
 | Parent row (`..`) | Navigation, empty directories, filesystem root, tab switching, and sorting checked; copy, rename, and Trash actions unavailable for the parent row |
 | Date and time | Fixed `dd.MM.yyyy HH:mm` format, including a 24-hour afternoon time |
 | English interface | Labels, menus, tooltips, errors, fixtures, and scripts translated; the application declares English as its only supported language |
 | ZIP and 7z | Creation and extraction with content checks; Unicode, spaces, hidden and empty files, and names containing `-`, `@`, or a newline |
+| Opening ZIP archives | Uppercase `.ZIP` opens through QE; extraction uses a free folder name, preserves existing files and archive bytes, and opens the result; later navigation is not interrupted |
 | Archives with `..`, absolute paths, or traversal through symbolic links | No writes outside the extraction directory |
 | Trash | Temporary file found in Trash with its contents preserved |
 

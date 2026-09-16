@@ -7,6 +7,7 @@ swift build
 .build/debug/QEChecks "$@"
 python3 - <<'PY'
 from pathlib import Path
+import json
 import os
 import subprocess
 import tempfile
@@ -38,6 +39,13 @@ with tempfile.TemporaryDirectory(prefix='qe-ui-') as temporary:
         'CFBundleExecutable': 'OpenReceiver', 'CFBundlePackageType': 'APPL', 'LSUIElement': True,
     }))
     subprocess.run(['swiftc', 'Tests/OpenReceiver/main.swift', '-o', str(executable)], check=True)
+    output = Path('.build/ui-check').absolute()
+    report = output / 'ui-check.json'
+    report.unlink(missing_ok=True)
     subprocess.run(['.build/debug/QE', '--directory', str(root), '--ui-check',
-                    str(Path('.build/ui-check').absolute()), '--open-check-app', str(receiver)], check=True, timeout=45)
+                    str(output), '--open-check-app', str(receiver)], check=True, timeout=45)
+    if not report.is_file():
+        raise RuntimeError('UI check exited without writing its report')
+    if json.loads(report.read_text())['failures']:
+        raise RuntimeError('UI check reported failures')
 PY

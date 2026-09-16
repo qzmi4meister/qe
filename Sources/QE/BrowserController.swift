@@ -15,6 +15,7 @@ struct BrowserTab {
 final class BrowserController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate,
     NSTextFieldDelegate, NSMenuItemValidation, NSWindowDelegate {
     let preferences: UserDefaults
+    weak var appDelegate: AppDelegate?
     var tabs: [BrowserTab] = []
     var active = 0
     var entries: [FileEntry] = []
@@ -41,8 +42,9 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     var completionMessage: String?
     var watcher: DispatchSourceFileSystemObject?
     var refreshWork: DispatchWorkItem?
-    var cutURLs: [URL] = []
-    var cutChange = -1
+    static var clipboard = NSPasteboard.general
+    static var cutURLs: [URL] = []
+    static var cutChange = -1
     var revealURL: URL?
     var sortKey = "name"
     var ascending = true
@@ -67,12 +69,10 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         return value
     }()
 
-    init(startURL: URL? = nil, preferences: UserDefaults = .standard) {
+    init(tabs: [BrowserTab], active: Int = 0, preferences: UserDefaults = .standard) {
         self.preferences = preferences
-        let saved = preferences.stringArray(forKey: "tabs") ?? []
-        tabs = (startURL.map { [$0] } ?? saved.map { URL(fileURLWithPath: $0) }).map(BrowserTab.init)
-        if tabs.isEmpty { tabs = [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)] }
-        active = min(max(0, preferences.integer(forKey: "activeTab")), tabs.count - 1)
+        self.tabs = tabs.isEmpty ? [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)] : tabs
+        self.active = min(max(0, active), self.tabs.count - 1)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1060, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         super.init(window: window)
@@ -86,7 +86,6 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         window.setContentSize(NSSize(width: 1060, height: 680))
         if !CommandLine.arguments.contains("--ui-check") {
             window.setFrameUsingName("QEBrowser")
-            window.setFrameAutosaveName("QEBrowser")
         }
         buildMenu()
         refreshSidebar()
@@ -123,7 +122,8 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         ])
         tabScroll.heightAnchor.constraint(equalToConstant: 34).isActive = true
         let addTab = iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) }
-        let tabRow = inset(horizontal([tabScroll, addTab]), y: 2)
+        let addWindow = iconButton("New Window", "macwindow") { [weak self] in self?.newWindow(nil) }
+        let tabRow = inset(horizontal([tabScroll, addTab, addWindow]), y: 2)
 
         let folder = ActionButton("New Folder", symbol: "folder.badge.plus") { [weak self] in self?.createFolder(nil) }
         let file = ActionButton("New File", symbol: "doc.badge.plus") { [weak self] in self?.createFile(nil) }
@@ -261,12 +261,8 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         }
     }
 
-    func saveTabs() {
-        preferences.set(tabs.map { $0.url.path }, forKey: "tabs")
-        preferences.set(active, forKey: "activeTab")
-    }
     func captureTab() {
-        if !isSearch {
+        if !isSearch && !isLoading {
             tabs[active].selection = Set(selected.map(\.path))
             tabs[active].scroll = max(0, scroll.contentView.bounds.origin.y + (table.headerView?.frame.height ?? 0))
         }
@@ -279,9 +275,14 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
             button.widthAnchor.constraint(equalToConstant: 175).isActive = true
             button.selectTab = { [weak self] in self?.selectTab(index) }
             button.receiveFiles = { [weak self] urls, move in self?.transfer(urls, to: tab.url, move: move) }
+            let menu = NSMenu()
+            let move = NSMenuItem(title: "Move Tab to New Window", action: #selector(moveTabToWindow(_:)), keyEquivalent: "")
+            move.target = self; move.representedObject = tab.id
+            menu.addItem(move); button.menu = menu
             tabsStack.addArrangedSubview(button)
         }
-        saveTabs()
+        window?.title = "\(current.lastPathComponent.isEmpty ? "/" : current.lastPathComponent) — QE"
+        appDelegate?.saveWindows()
     }
     func selectTab(_ index: Int) {
         guard tabs.indices.contains(index) else { return }
@@ -290,12 +291,29 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     @objc func newTab(_ sender: Any?) {
         captureTab(); tabs.append(BrowserTab(current)); active = tabs.count - 1; leaveSearch(); rebuildTabs(); reload()
     }
+    @objc func newWindow(_ sender: Any?) { appDelegate?.openWindow(tabs: [BrowserTab(current)]) }
+    @objc func moveTabToWindow(_ sender: Any?) {
+        let id = (sender as? NSMenuItem)?.representedObject as? UUID
+        guard let index = id.flatMap({ id in tabs.firstIndex { $0.id == id } }) ?? (id == nil ? active : nil),
+              tabs.count > 1, operation == nil, let appDelegate else { return }
+        captureTab()
+        let tab = tabs[index]
+        let query = index == active && isSearch ? searchField.stringValue : nil
+        let destination = appDelegate.openWindow(tabs: [tab])
+        destination.table.sortDescriptors = table.sortDescriptors
+        closeTab(at: index)
+        if let query { destination.searchField.stringValue = query; destination.startSearch(nil) }
+    }
     @objc func closeCurrentTab(_ sender: Any?) { closeTab(at: active) }
     func closeTab(at index: Int) {
+        guard tabs.indices.contains(index) else { return }
         if tabs.count == 1 { window?.performClose(nil); return }
+        let closingActive = index == active
         captureTab(); tabs.remove(at: index)
         if index < active { active -= 1 } else if active >= tabs.count { active = tabs.count - 1 }
-        leaveSearch(); rebuildTabs(); refreshSidebar(); reload()
+        if closingActive { leaveSearch() }
+        rebuildTabs(); refreshSidebar()
+        if !isSearch { reload() }
     }
     func navigate(_ url: URL, reveal: URL? = nil) {
         captureTab(); leaveSearch(); completionMessage = nil
@@ -463,7 +481,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         }
         label.textColor = entry.isHidden ? .secondaryLabelColor : .labelColor
         cell.toolTip = entry.url.path
-        cell.alphaValue = cutChange == NSPasteboard.general.changeCount && cutURLs.contains(entry.url) ? 0.5 : 1
+        cell.alphaValue = Self.cutChange == Self.clipboard.changeCount && Self.cutURLs.contains(entry.url) ? 0.5 : 1
         return cell
     }
     func makeCell(_ identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
@@ -493,7 +511,17 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         let destination = entry(at: row).flatMap { $0.canBrowse ? $0.url : nil } ?? current
         transfer(urls, to: destination, move: NSEvent.modifierFlags.contains(.command)); return true
     }
-    func windowWillClose(_ notification: Notification) { captureTab(); saveTabs(); watcher?.cancel(); search?.cancel() }
+    func windowDidBecomeKey(_ notification: Notification) {
+        hiddenButton.state = shownHidden ? .on : .off
+        if !isLoading { refresh(nil) }
+    }
+    func windowWillClose(_ notification: Notification) {
+        captureTab(); generation = UUID()
+        watcher?.cancel(); watcher = nil; search?.cancel(); search = nil; refreshWork?.cancel()
+        NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        appDelegate?.closedWindow(self)
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if operation != nil { showError(FileProblem.message("Wait for the operation to finish or cancel it before closing the window.")); return false }
         return true

@@ -1,6 +1,6 @@
 # QE
 
-A lightweight native file manager for macOS 26 and Apple Silicon. One pane with tabs, a sidebar for folders and disks, and direct access to file operations.
+A lightweight native file manager for macOS 26 and Apple Silicon. Independent windows with tabs, a sidebar for folders and disks, and direct access to file operations.
 
 ## Install with Homebrew
 
@@ -50,13 +50,14 @@ Quit the local `dist/QE.app` before rebuilding it. The application version is se
 - **New Folder / New File** are above the file list. New files are empty; enter any valid name and extension.
 - **Dates** use `dd.MM.yyyy` and 24-hour `HH:mm` time in your local time zone.
 - **Path** is editable at the top of the window. The button beside it copies the current path; the context menu copies paths of selected items.
-- **Tabs** open with the **+** button and close with the cross inside each tab. The active tab is blue. Open paths are restored at launch.
+- **Windows** open with **File → New Window**, **⌘⌥N**, or the window button beside **+**. A new window starts in the current folder. Windows and their tab paths are restored at launch.
+- **Tabs** open with the **+** button and close with the cross inside each tab. The active tab is blue. Right-click a tab and choose **Move Tab to New Window**, or use the same command in the **Window** menu for the active tab. Moving preserves navigation history, sorting, selection, and scroll position; an active search continues in the new window. The command is available when the window has multiple tabs and no file operation is running.
 - **Go Up**: double-click the `..` row at the top of the list. It stays above files when sorting and is excluded from file operations. It is hidden at the filesystem root and in search results.
 - **Hidden Files** are shown on first launch. Your choice is saved.
 - **Copy / Cut / Paste**, **Copy To… / Move To…**, **Rename**, and **Move to Trash** are in the context menu.
 - **Drag and drop** into a folder or onto a tab copies files. Hold ⌘ to move them.
 - **Search**: enter part of a name and press Return. Search includes subfolders; clearing the field returns to the directory listing. **Show in Folder** opens a result's parent folder and selects the item.
-- **ZIP / 7z**: create and extract archives through the context menu. Extraction creates a separate folder and preserves the archive.
+- **ZIP / 7z**: double-click an archive to extract it into a folder beside it and open that folder in QE. If the folder already exists, QE chooses a free name. The archive stays intact. **Extract…** lets you choose a destination, and **Open With…** opens the archive in another application. A remembered application choice takes precedence over built-in extraction. Create archives through the context menu.
 - **Open With…**: choose an application from the list or click **Other…**. Select **Always open .txt files in QE with this application** to save a choice for that extension. Double-clicking or choosing **Open** then uses that application.
 - **Reset Application for .txt** restores the system default for that extension. Associations apply within QE and persist between launches. `.TXT` and `.txt` are equivalent; files without an extension can be opened with an application once.
 - **External disks** appear in the sidebar. Removable volumes have an eject button.
@@ -70,6 +71,7 @@ When names conflict, choose **Keep Both**, **Skip**, or **Replace**. Replacing a
 | New folder | ⌘⇧N |
 | New file | ⌘N |
 | New / close tab | ⌘T / ⌘W |
+| New window | ⌘⌥N |
 | Go to path | ⌘L |
 | Search by name | ⌘F |
 | Copy path | ⌘⌥C |
@@ -93,7 +95,7 @@ When names conflict, choose **Keep Both**, **Skip**, or **Replace**. Replacing a
 ./scripts/check.sh
 ```
 
-Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. They also verify that releases require signing and notarization credentials. The application then runs with temporary data to check tabs, parent navigation, hidden files, search, selection, and directory updates. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
+Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. They also verify that releases require signing and notarization credentials. The application then runs with temporary data to check tabs, independent windows, tab movement, session restoration, cross-window Cut/Paste, parent navigation, hidden files, search, selection, and directory updates. Clipboard checks use a private pasteboard. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
 
 To measure reading and sorting 10,000 items:
 

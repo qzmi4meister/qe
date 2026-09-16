@@ -5,36 +5,41 @@ extension BrowserController {
     func buildMenu() {
         func item(_ title: String, _ action: Selector, _ key: String = "", modifiers: NSEvent.ModifierFlags = .command) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
-            item.target = self; item.keyEquivalentModifierMask = modifiers; return item
+            item.keyEquivalentModifierMask = modifiers; return item
         }
-        let bar = NSMenu()
-        func menu(_ title: String, _ items: [NSMenuItem]) {
-            let root = NSMenuItem(); root.title = title; let menu = NSMenu(title: title)
-            items.forEach(menu.addItem); root.submenu = menu; bar.addItem(root)
+        if NSApp.mainMenu == nil {
+            let bar = NSMenu()
+            func menu(_ title: String, _ items: [NSMenuItem]) {
+                let root = NSMenuItem(); root.title = title; let menu = NSMenu(title: title)
+                items.forEach(menu.addItem); root.submenu = menu; bar.addItem(root)
+            }
+            let quit = NSMenuItem(title: "Quit QE", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+            let about = NSMenuItem(title: "About QE", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+            let hide = NSMenuItem(title: "Hide QE", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+            menu("QE", [about, .separator(), hide, .separator(), quit])
+            menu("File", [item("New Window", #selector(newWindow(_:)), "n", modifiers: [.command, .option]), .separator(),
+                item("New Folder", #selector(createFolder(_:)), "n", modifiers: [.command, .shift]),
+                item("New File", #selector(createFile(_:)), "n"), .separator(),
+                item("New Tab", #selector(newTab(_:)), "t"), item("Close Tab", #selector(closeCurrentTab(_:)), "w"), .separator(),
+                item("Open", #selector(openSelected(_:)), "o"), item("Open With…", #selector(openWith(_:))),
+                item("Reset Default Application", #selector(resetAssociation(_:))), item("Rename…", #selector(renameSelected(_:))),
+                item("Move to Trash", #selector(trashSelected(_:)), "\u{8}"), .separator(),
+                item("Create ZIP…", #selector(createZIP(_:))), item("Create 7z…", #selector(create7z(_:))), item("Extract…", #selector(extractArchive(_:)))])
+            menu("Edit", [item("Cut", #selector(cutFiles(_:)), "x"), item("Copy", #selector(copyFiles(_:)), "c"),
+                item("Paste", #selector(pasteFiles(_:)), "v"), item("Select All", #selector(selectAllFiles(_:)), "a"), .separator(),
+                item("Copy Path", #selector(copyPaths(_:)), "c", modifiers: [.command, .option]),
+                item("Copy To…", #selector(copyTo(_:))), item("Move To…", #selector(moveTo(_:)))])
+            menu("View", [item("Show Hidden Files", #selector(toggleHidden(_:)), ".", modifiers: [.command, .shift]),
+                item("Refresh", #selector(refresh(_:)), "r"), item("Go to Path", #selector(focusPath(_:)), "l"),
+                item("Search by Name", #selector(focusSearch(_:)), "f"), item("Show in Folder", #selector(revealSelected(_:)))])
+            let windowMenu = NSMenu(title: "Window")
+            windowMenu.addItem(item("Move Tab to New Window", #selector(moveTabToWindow(_:))))
+            windowMenu.addItem(.separator())
+            windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+            windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+            let windowItem = NSMenuItem(); windowItem.submenu = windowMenu; bar.addItem(windowItem)
+            NSApp.windowsMenu = windowMenu; NSApp.mainMenu = bar
         }
-        let quit = NSMenuItem(title: "Quit QE", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        let about = NSMenuItem(title: "About QE", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        let hide = NSMenuItem(title: "Hide QE", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        menu("QE", [about, .separator(), hide, .separator(), quit])
-        menu("File", [item("New Folder", #selector(createFolder(_:)), "n", modifiers: [.command, .shift]),
-            item("New File", #selector(createFile(_:)), "n"), .separator(),
-            item("New Tab", #selector(newTab(_:)), "t"), item("Close Tab", #selector(closeCurrentTab(_:)), "w"), .separator(),
-            item("Open", #selector(openSelected(_:)), "o"), item("Open With…", #selector(openWith(_:))),
-            item("Reset Default Application", #selector(resetAssociation(_:))), item("Rename…", #selector(renameSelected(_:))),
-            item("Move to Trash", #selector(trashSelected(_:)), "\u{8}"), .separator(),
-            item("Create ZIP…", #selector(createZIP(_:))), item("Create 7z…", #selector(create7z(_:))), item("Extract…", #selector(extractArchive(_:)))])
-        menu("Edit", [item("Cut", #selector(cutFiles(_:)), "x"), item("Copy", #selector(copyFiles(_:)), "c"),
-            item("Paste", #selector(pasteFiles(_:)), "v"), item("Select All", #selector(selectAllFiles(_:)), "a"), .separator(),
-            item("Copy Path", #selector(copyPaths(_:)), "c", modifiers: [.command, .option]),
-            item("Copy To…", #selector(copyTo(_:))), item("Move To…", #selector(moveTo(_:)))])
-        menu("View", [item("Show Hidden Files", #selector(toggleHidden(_:)), ".", modifiers: [.command, .shift]),
-            item("Refresh", #selector(refresh(_:)), "r"), item("Go to Path", #selector(focusPath(_:)), "l"),
-            item("Search by Name", #selector(focusSearch(_:)), "f"), item("Show in Folder", #selector(revealSelected(_:)))])
-        let windowMenu = NSMenu(title: "Window")
-        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
-        let windowItem = NSMenuItem(); windowItem.submenu = windowMenu; bar.addItem(windowItem)
-        NSApp.windowsMenu = windowMenu; NSApp.mainMenu = bar
 
         let context = NSMenu()
         [item("Open", #selector(openSelected(_:))), item("Open With…", #selector(openWith(_:))),
@@ -45,14 +50,18 @@ extension BrowserController {
          item("Copy Path", #selector(copyPaths(_:))), .separator(),
          item("Copy To…", #selector(copyTo(_:))), item("Move To…", #selector(moveTo(_:))), item("Rename…", #selector(renameSelected(_:))),
          .separator(), item("Create ZIP…", #selector(createZIP(_:))), item("Create 7z…", #selector(create7z(_:))),
-         item("Extract…", #selector(extractArchive(_:))), .separator(), item("Move to Trash", #selector(trashSelected(_:)))].forEach(context.addItem)
+         item("Extract…", #selector(extractArchive(_:))), .separator(), item("Move to Trash", #selector(trashSelected(_:)))].forEach { $0.target = self; context.addItem($0) }
         table.menu = context
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let action = menuItem.action
         if action == #selector(toggleHidden(_:)) { menuItem.state = shownHidden ? .on : .off; return true }
-        if [#selector(focusPath(_:)), #selector(focusSearch(_:)), #selector(refresh(_:)), #selector(newTab(_:)), #selector(closeCurrentTab(_:))].contains(action) { return true }
+        if [#selector(focusPath(_:)), #selector(focusSearch(_:)), #selector(refresh(_:)), #selector(newTab(_:)), #selector(newWindow(_:)), #selector(closeCurrentTab(_:))].contains(action) { return true }
+        if action == #selector(moveTabToWindow(_:)) {
+            let id = menuItem.representedObject as? UUID
+            return tabs.count > 1 && operation == nil && (id == nil || tabs.contains { $0.id == id })
+        }
         if action == #selector(copyPaths(_:)) { return true }
         if window?.firstResponder is NSTextView,
            [#selector(cutFiles(_:)), #selector(copyFiles(_:)), #selector(pasteFiles(_:)), #selector(selectAllFiles(_:))].contains(action) { return true }
@@ -159,31 +168,31 @@ extension BrowserController {
             return "Renamed: \(name)"
         }
     }
-    func copyCurrentPath() { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(current.path, forType: .string) }
+    func copyCurrentPath() { Self.clipboard.clearContents(); Self.clipboard.setString(current.path, forType: .string) }
     @objc func copyPaths(_ sender: Any?) {
         let urls = selected.isEmpty ? [current] : selected
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(urls.map(\.path).joined(separator: "\n"), forType: .string)
+        Self.clipboard.clearContents(); Self.clipboard.setString(urls.map(\.path).joined(separator: "\n"), forType: .string)
     }
     @objc func copyFiles(_ sender: Any?) {
         if let editor = window?.firstResponder as? NSTextView { editor.copy(sender); return }
         guard !selected.isEmpty else { return }
-        NSPasteboard.general.clearContents(); NSPasteboard.general.writeObjects(selected.map { $0 as NSURL }); cutURLs = []; table.reloadData()
+        Self.clipboard.clearContents(); Self.clipboard.writeObjects(selected.map { $0 as NSURL }); Self.cutURLs = []; table.reloadData()
     }
     @objc func cutFiles(_ sender: Any?) {
         if let editor = window?.firstResponder as? NSTextView { editor.cut(sender); return }
         guard operation == nil, !selected.isEmpty else { return }
         let urls = selected
-        NSPasteboard.general.clearContents(); NSPasteboard.general.writeObjects(urls.map { $0 as NSURL })
-        cutURLs = urls; cutChange = NSPasteboard.general.changeCount; table.reloadData()
+        Self.clipboard.clearContents(); Self.clipboard.writeObjects(urls.map { $0 as NSURL })
+        Self.cutURLs = urls; Self.cutChange = Self.clipboard.changeCount; table.reloadData()
     }
     func clipboardURLs() -> [URL] {
-        NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        Self.clipboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
     }
     @objc func pasteFiles(_ sender: Any?) {
         if let editor = window?.firstResponder as? NSTextView { editor.paste(sender); return }
         guard !isSearch else { return }
         let urls = clipboardURLs(); guard !urls.isEmpty else { return }
-        let move = cutChange == NSPasteboard.general.changeCount && urls == cutURLs
+        let move = Self.cutChange == Self.clipboard.changeCount && urls == Self.cutURLs
         transfer(urls, to: current, move: move)
     }
     @objc func selectAllFiles(_ sender: Any?) {
@@ -228,12 +237,11 @@ extension BrowserController {
                 catch { errors.append("\(source.lastPathComponent): \(error.localizedDescription)") }
             }
             DispatchQueue.main.async {
-                guard let self else { return }
-                self.cutURLs.removeAll { item in moved.contains { item.path == $0.path || item.path.hasPrefix($0.path + "/") } }
-                if self.cutChange == NSPasteboard.general.changeCount && !moved.isEmpty {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.writeObjects(self.cutURLs.map { $0 as NSURL })
-                    self.cutChange = NSPasteboard.general.changeCount
+                Self.cutURLs.removeAll { item in moved.contains { item.path == $0.path || item.path.hasPrefix($0.path + "/") } }
+                if Self.cutChange == Self.clipboard.changeCount && !moved.isEmpty {
+                    Self.clipboard.clearContents()
+                    Self.clipboard.writeObjects(Self.cutURLs.map { $0 as NSURL })
+                    Self.cutChange = Self.clipboard.changeCount
                 }
             }
             let summary = "Completed: \(completed) of \(sources.count) · Skipped: \(skipped)" + (token.isCancelled ? " · Cancelled; remaining items were not processed" : "")
