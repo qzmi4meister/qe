@@ -38,9 +38,9 @@ extension BrowserController {
     func openArchive(_ archive: URL) {
         let tabID = tabs[active].id
         let directory = current
-        runOperation("Extracting…") { [weak self] token, _ in
+        runOperation("Extracting…") { [weak self] token, report in
             let destination = Files.availableName(for: archive.deletingPathExtension())
-            try Archives.extract(archive, to: destination, cancellation: token)
+            try Archives.extract(archive, to: destination, cancellation: token, report: report)
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.tabs[self.active].id == tabID, self.current == directory else { return }
                 self.navigate(destination)

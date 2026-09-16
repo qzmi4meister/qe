@@ -1,6 +1,6 @@
-# QE 0.6.1 verification
+# QE 0.6.2 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, including selection preparation, search scopes, function keys, and split panes. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, including archive cancellation, selection preparation, search scopes, function keys, and split panes. Historical measurements and volume checks are identified separately below.
 
 ## Current checks
 
@@ -8,7 +8,7 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, in
 | --- | --- |
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
-| 15 file-operation and settings scenarios | No failures in debug and release builds |
+| 17 file-operation and settings scenarios | No failures in debug and release builds |
 | Top-level selection | Duplicates, nested folders, similar prefixes, symbolic links, missing ancestors, root paths, ordering, and cancellation checked; 1,728 additional input combinations matched the previous implementation |
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
@@ -28,6 +28,9 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, in
 | Date and time | Fixed `dd.MM.yyyy HH:mm` format, including a 24-hour afternoon time |
 | English interface | Labels, menus, tooltips, errors, fixtures, and scripts translated; the application declares English as its only supported language |
 | ZIP and 7z | Creation and extraction with content checks; Unicode, spaces, hidden and empty files, and names containing `-`, `@`, or a newline |
+| Archive process cancellation | Normal exit, cooperative SIGTERM, ignored SIGTERM followed by SIGKILL, and a simulated pending SIGKILL checked. The runner returns only after the child exits; the pending explanation is cleared afterward. |
+| Cancelling a running extraction | A real `/usr/bin/tar` blocked reading a fixture FIFO was cancelled; source files remained intact, no destination was published, and temporary output was removed. |
+| Stalled archive UI | Cancellation preserves the busy operation and explanation; both Quit and window close remain blocked and show that explanation. |
 | Opening ZIP archives | Uppercase `.ZIP` opens through QE; extraction uses a free folder name, preserves existing files and archive bytes, and opens the result; later navigation is not interrupted |
 | Archives with `..`, absolute paths, or traversal through symbolic links | No writes outside the extraction directory |
 | Trash | Temporary file found in Trash with its contents preserved |
@@ -61,10 +64,12 @@ One-time local measurements of the 0.1.0 baseline, not guarantees for every disk
 ## Practical limits
 
 - A physical USB drive or external HDD was not disconnected during a write. Volume checks used disposable disk images.
+- Archive cancellation allows two seconds after SIGTERM, then sends SIGKILL and allows two more seconds. If the process still has not exited, QE reports the stall and keeps waiting without cleaning its temporary output or releasing the operation. Uninterruptible disk I/O was simulated by withholding SIGKILL in the process-runner check; an actual stuck disk was not induced. macOS Force Quit can leave the child process and temporary output behind.
 - Cancelling a single large file can wait for that file's copy to finish. Completed items are not rolled back.
 - Password-protected archives, multipart archives, and browsing inside archives are unsupported. Compatibility with every metadata variant from other archivers has not been established.
 - UI checks call the real AppKit controllers. A full manual mouse pass, including dragging between applications, has not been completed.
 - Local release checks intermittently failed in window focus and F2, and one run timed out in a conflict dialog. A diagnostic rerun passed; the cause is not established. Filename assertions and file-operation checks remain enabled, with more detail on F2 failures.
+- During 0.6.2 verification, three full UI runs failed on pane focus/F2 or timed out. A control run of `main`, the isolated stalled-archive UI check, a diagnostic full run, and the final full run without diagnostics passed. The cause of the intermittent failures remains unestablished; no product focus changes were made.
 - Published releases through 0.3.0 are signed ad hoc and may require first-launch approval in Privacy & Security. Releases from 0.3.1 use the signing and notarization checks in [RELEASING.md](RELEASING.md).
 
 Run the main checks with `./scripts/check.sh`. Window images and the machine-readable report are in `.build/ui-check/`; historical large-directory results are in `.build/large-ui-check/`.

@@ -108,6 +108,7 @@ Depending on keyboard settings, F2–F8 may require **Fn / 🌐** to activate th
 
 - Copy cancellation is checked between items. A single large file may finish copying before cancellation takes effect.
 - Cancelling an operation preserves already completed items. There is no general undo.
+- If an archiver remains blocked on disk access after cancellation, QE keeps its operation active and preserves temporary output. Normal closing stays blocked. Finish other operations before using macOS Force Quit; the archiver and temporary files may remain.
 - Password-protected and multipart archives are unsupported.
 - Adding an extension to an empty file does not create a Word document, spreadsheet, or other structured format.
 - Search operates on names, excludes application-bundle contents, and does not follow symbolic links.

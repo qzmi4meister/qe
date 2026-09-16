@@ -37,8 +37,11 @@ public enum FileProblem: LocalizedError {
 public final class Cancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var value = false
+    private var message: String?
     public init() {}
     public var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return value }
+    public var pendingMessage: String? { lock.lock(); defer { lock.unlock() }; return message }
+    package func setPendingMessage(_ text: String?) { lock.lock(); message = text; lock.unlock() }
     public func cancel() { lock.lock(); value = true; lock.unlock() }
     public func check() throws { if isCancelled { throw CancellationError() } }
 }

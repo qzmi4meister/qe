@@ -382,6 +382,7 @@ final class UICheck {
                                 } else { self.failures.append("Document missing after refresh") }
                                 NSApp.activate(ignoringOtherApps: true)
                                 self.checkApplicationChooser(file)
+                                self.checkStalledArchiveClosing()
                                 self.finish()
                             }
                         }
@@ -412,6 +413,28 @@ final class UICheck {
         browser.chooseApplication(for: file)
         timer.invalidate()
         expect(browser.associations.application(for: file) == nil, "Cancelling chooser changed association")
+    }
+    func checkStalledArchiveClosing() {
+        let app = browser.appDelegate!
+        let other = app.openWindow(tabs: [BrowserTab(browser.current)])
+        other.operation = Cancellation()
+        let pending = "The archiver has not stopped. Temporary files are being kept."
+        other.operation?.cancel(); other.operation?.setPendingMessage(pending)
+        other.cancelCurrent()
+        expect(other.status.stringValue == pending && other.operation != nil, "Stalled cancellation lost its operation or explanation")
+        for quit in [true, false] {
+            let closeAlert = Timer(timeInterval: 0.1, repeats: false) { _ in
+                let content = NSApp.modalWindow?.contentView
+                self.expect(content.map { self.text(in: $0).contains(pending) } == true, "Stalled archive explanation missing from close/quit dialog")
+                NSApp.abortModal()
+            }
+            RunLoop.main.add(closeAlert, forMode: .modalPanel)
+            if quit { expect(app.applicationShouldTerminate(NSApp) == .terminateCancel, "Quit released a stalled archive") }
+            else { expect(!other.owner!.windowShouldClose(other.window!), "Window close released a stalled archive") }
+            closeAlert.invalidate()
+        }
+        other.operation = nil
+        other.window?.performClose(nil)
     }
     func finish() {
         pulse?.cancel()

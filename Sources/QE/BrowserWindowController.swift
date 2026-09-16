@@ -93,7 +93,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if let busy = panes.first(where: { $0.operation != nil }) {
-            busy.showError(FileProblem.message("Wait for the operation to finish or cancel it before closing the window."))
+            busy.showError(FileProblem.message(busy.operation?.pendingMessage ?? "Wait for the operation to finish or cancel it before closing the window."))
             return false
         }
         return true

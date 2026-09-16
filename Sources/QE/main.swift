@@ -91,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if let browser = browsers.first(where: { $0.operation != nil }) {
             browser.showWindow(nil)
-            browser.showError(QuitProblem())
+            browser.showError(QuitProblem(pendingMessage: browser.operation?.pendingMessage))
             return .terminateCancel
         }
         saveWindows()
@@ -105,7 +105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 struct QuitProblem: LocalizedError {
-    var errorDescription: String? { "Wait for the operation to finish or cancel it before quitting." }
+    var pendingMessage: String? = nil
+    var errorDescription: String? { pendingMessage ?? "Wait for the operation to finish or cancel it before quitting." }
 }
 
 let app = NSApplication.shared

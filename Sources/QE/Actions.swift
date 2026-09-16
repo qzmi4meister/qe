@@ -141,7 +141,7 @@ extension BrowserController {
         }
     }
     func cancelCurrent() {
-        if let operation { operation.cancel(); status.stringValue = "Cancelling… The current file may take a while." }
+        if let operation { operation.cancel(); status.stringValue = operation.pendingMessage ?? "Cancelling… The current file may take a while." }
         else { search?.cancel() }
     }
 
@@ -300,8 +300,8 @@ extension BrowserController {
         panel.nameFieldStringValue = (sources.count == 1 ? sources[0].lastPathComponent : "Archive") + "." + format
         guard panel.runModal() == .OK, var destination = panel.url else { return }
         if destination.pathExtension.lowercased() != format { destination.appendPathExtension(format) }
-        runOperation("Creating archive…") { token, _ in
-            try Archives.create(sources, at: destination, format: format, cancellation: token)
+        runOperation("Creating archive…") { token, report in
+            try Archives.create(sources, at: destination, format: format, cancellation: token, report: report)
             return "Archive created: \(destination.lastPathComponent)"
         }
     }
@@ -312,8 +312,8 @@ extension BrowserController {
         guard let name = namePrompt(title: "Extraction Folder", value: suggestion.lastPathComponent, confirm: "Extract") else { return }
         do {
             let destination = try Files.named(name, in: parent)
-            runOperation("Extracting…") { token, _ in
-                try Archives.extract(archive, to: destination, cancellation: token)
+            runOperation("Extracting…") { token, report in
+                try Archives.extract(archive, to: destination, cancellation: token, report: report)
                 return "Extracted: \(destination.lastPathComponent)"
             }
         } catch { showError(error) }

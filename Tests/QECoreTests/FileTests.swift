@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import QECore
 
 final class FileTests {
@@ -229,6 +230,112 @@ final class FileTests {
         expectFalse(try Files.list(root, hidden: true).contains { $0.name.hasPrefix(".qe-") })
     }
 
+    func testArchiveProcessCancellation() throws {
+        let script = """
+        import pathlib, signal, sys, time
+        mode, ready, partial = sys.argv[1:]
+        if mode == 'exit':
+            sys.exit(7)
+        def terminate(signum, frame):
+            pathlib.Path(ready + '.term').write_text('SIGTERM')
+            if mode == 'term':
+                sys.exit(0)
+        signal.signal(signal.SIGTERM, terminate)
+        pathlib.Path(partial).write_text('partial output')
+        pathlib.Path(ready).write_text('ready')
+        while True:
+            time.sleep(1)
+        """
+        for mode in ["exit", "term", "ignore", "stalled"] {
+            let ready = root.appendingPathComponent(mode + ".ready")
+            let partial = root.appendingPathComponent(mode + ".partial")
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+            process.arguments = ["-c", script, mode, ready.path, partial.path]
+            process.standardInput = FileHandle.nullDevice
+            process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+            let token = Cancellation(), watchdogFired = Cancellation()
+            let watchdog = DispatchWorkItem {
+                watchdogFired.cancel()
+                if process.isRunning { _ = Darwin.kill(process.processIdentifier, SIGKILL) }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(10), execute: watchdog)
+            defer { watchdog.cancel() }
+            let canceller = DispatchGroup()
+            if mode != "exit" {
+                canceller.enter()
+                DispatchQueue.global().async {
+                    defer { canceller.leave() }
+                    let deadline = Date().addingTimeInterval(5)
+                    while !Files.exists(ready) && Date() < deadline { Thread.sleep(forTimeInterval: 0.01) }
+                    token.cancel()
+                }
+            }
+            var kills = 0, reports = 0
+            do {
+                try Archives.runProcess(process, cancellation: token, report: { message in
+                    reports += 1
+                    expectEqual(mode, "stalled")
+                    expectTrue(process.isRunning, "Stalled process was already released")
+                    expectEqual(token.pendingMessage, message)
+                    expectEqual(try? String(contentsOf: partial, encoding: .utf8), "partial output")
+                    // Simulate the blocked OS operation finally releasing the process.
+                    _ = Darwin.kill(process.processIdentifier, SIGKILL)
+                }, forceKill: { pid in
+                    kills += 1
+                    // A pending SIGKILL during uninterruptible I/O is simulated without blocking a real disk.
+                    if mode != "stalled" { _ = Darwin.kill(pid, SIGKILL) }
+                })
+                expectEqual(mode, "exit")
+                expectEqual(process.terminationStatus, 7)
+            } catch is CancellationError {
+                expectFalse(mode == "exit")
+                expectTrue(Files.exists(ready.appendingPathExtension("term")), "SIGTERM was not delivered")
+                expectEqual(process.terminationStatus, mode == "term" ? 0 : SIGKILL)
+            }
+            canceller.wait(); watchdog.cancel()
+            expectFalse(watchdogFired.isCancelled, "Archive cancellation exceeded the watchdog deadline")
+            expectFalse(process.isRunning, "Returned while the process could still write")
+            expectNil(token.pendingMessage)
+            expectEqual(kills, ["ignore", "stalled"].contains(mode) ? 1 : 0)
+            expectEqual(reports, mode == "stalled" ? 1 : 0)
+        }
+    }
+
+    func testCancelRunningArchivePreservesFiles() throws {
+        let archive = root.appendingPathComponent("blocked.zip")
+        guard mkfifo(archive.path, 0o600) == 0 else { throw FileProblem.message("Could not create archive fixture pipe") }
+        let source = try file("keep.txt")
+        let destination = root.appendingPathComponent("output")
+        let token = Cancellation(), connected = Cancellation()
+        let releaseWriter = DispatchSemaphore(value: 0), writer = DispatchGroup()
+        writer.enter()
+        DispatchQueue.global().async {
+            defer { writer.leave() }
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline {
+                let fd = open(archive.path, O_WRONLY | O_NONBLOCK)
+                if fd >= 0 {
+                    connected.cancel(); token.cancel()
+                    _ = releaseWriter.wait(timeout: .now() + .seconds(10))
+                    close(fd)
+                    return
+                }
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+            token.cancel()
+        }
+        defer { releaseWriter.signal(); writer.wait() }
+        do {
+            try Archives.extract(archive, to: destination, cancellation: token)
+            expectTrue(false, "Running extraction was not cancelled")
+        } catch is CancellationError {}
+        expectTrue(connected.isCancelled, "tar never opened the archive fixture")
+        expectTrue(Files.exists(archive))
+        expectEqual(try Data(contentsOf: source), Data("original".utf8))
+        expectFalse(Files.exists(destination))
+        expectFalse(try Files.list(root, hidden: true).contains { $0.name.hasPrefix(".qe-") })
+    }
+
     func testUntrustedArchiveCannotEscapeExtractionFolder() throws {
         // Fixtures are generated independently of our archive writer.
         let script = """
@@ -339,6 +446,8 @@ func unwrap<T>(_ value: T?) throws -> T {
             ("ZIP/7z round trips", tests.testArchiveRoundTripAndLiteralNames),
             ("archive destination validation", tests.testArchiveDestinationInsideSourceRejected),
             ("corrupt and cancelled archives", tests.testCorruptAndCancelledArchivesLeaveNoOutput),
+            ("archive process exit, cancellation and escalation", tests.testArchiveProcessCancellation),
+            ("running archive cancellation preserves files", tests.testCancelRunningArchivePreservesFiles),
             ("untrusted archive paths", tests.testUntrustedArchiveCannotEscapeExtractionFolder)
         ]
         for (name, test) in cases {
