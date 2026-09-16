@@ -12,10 +12,18 @@ struct BrowserTab {
     init(_ url: URL) { history = [url] }
 }
 
-final class BrowserController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate,
-    NSTextFieldDelegate, NSMenuItemValidation, NSWindowDelegate {
+final class BrowserController: NSViewController, NSTableViewDataSource, NSTableViewDelegate,
+    NSTextFieldDelegate, NSMenuItemValidation {
     let preferences: UserDefaults
-    weak var appDelegate: AppDelegate?
+    weak var owner: BrowserWindowController?
+    var appDelegate: AppDelegate? { owner?.appDelegate }
+    var window: NSWindow? { owner?.window }
+    var otherPane: BrowserController? { owner?.panes.first { $0 !== self } }
+    let sidebarScroll = NSScrollView()
+    var sidebarWidth: NSLayoutConstraint!
+    var sidebarDocumentWidth: NSLayoutConstraint!
+    var creationButtons: [ActionButton] = []
+    var previewURLs: [URL] = []
     var tabs: [BrowserTab] = []
     var active = 0
     var entries: [FileEntry] = []
@@ -73,20 +81,8 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         self.preferences = preferences
         self.tabs = tabs.isEmpty ? [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)] : tabs
         self.active = min(max(0, active), self.tabs.count - 1)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1060, height: 680),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        super.init(window: window)
-        window.title = "QE"
-        window.minSize = NSSize(width: 780, height: 450)
-        window.tabbingMode = .disallowed
-        window.center()
-        window.delegate = self
+        super.init(nibName: nil, bundle: nil)
         buildUI()
-        window.contentMinSize = NSSize(width: 780, height: 450)
-        window.setContentSize(NSSize(width: 1060, height: 680))
-        if !CommandLine.arguments.contains("--ui-check") {
-            window.setFrameUsingName("QEBrowser")
-        }
         buildMenu()
         refreshSidebar()
         rebuildTabs()
@@ -127,24 +123,28 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
 
         let folder = ActionButton("New Folder", symbol: "folder.badge.plus") { [weak self] in self?.createFolder(nil) }
         let file = ActionButton("New File", symbol: "doc.badge.plus") { [weak self] in self?.createFile(nil) }
+        creationButtons = [folder, file]
         hiddenButton = NSButton(checkboxWithTitle: "Hidden Files", target: self, action: #selector(toggleHidden))
         hiddenButton.state = shownHidden ? .on : .off
+        hiddenButton.setAccessibilityLabel("Show Hidden Files")
         hiddenButton.toolTip = "Show hidden files. This setting is saved."
         searchField.placeholderString = "Search by Name…"
         searchField.setAccessibilityLabel("Search file and folder names, including subfolders")
         searchField.sendsSearchStringImmediately = false; searchField.sendsWholeSearchString = true
         searchField.target = self; searchField.action = #selector(startSearch)
-        searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 150).isActive = true
+        searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
         let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let actions = inset(horizontal([folder, file, hiddenButton, spacer, searchField]))
 
         sidebar.orientation = .vertical; sidebar.alignment = .leading; sidebar.spacing = 5
         let sidebarBody = inset(sidebar, x: 10, y: 14)
-        let sidebarScroll = NSScrollView(); sidebarScroll.drawsBackground = false; sidebarScroll.hasVerticalScroller = true; sidebarScroll.autohidesScrollers = true
+        sidebarScroll.drawsBackground = false; sidebarScroll.hasVerticalScroller = true; sidebarScroll.autohidesScrollers = true
         sidebarScroll.documentView = sidebarBody
         sidebarBody.translatesAutoresizingMaskIntoConstraints = false
-        sidebarBody.widthAnchor.constraint(equalTo: sidebarScroll.contentView.widthAnchor).isActive = true
-        sidebarScroll.widthAnchor.constraint(equalToConstant: 178).isActive = true
+        sidebarDocumentWidth = sidebarBody.widthAnchor.constraint(equalTo: sidebarScroll.contentView.widthAnchor)
+        sidebarDocumentWidth.isActive = true
+        sidebarWidth = sidebarScroll.widthAnchor.constraint(equalToConstant: 178)
+        sidebarWidth.isActive = true
 
         table.delegate = self; table.dataSource = self
         table.rowHeight = 30; table.intercellSpacing = NSSize(width: 12, height: 0)
@@ -215,12 +215,22 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         bottomLine.heightAnchor.constraint(equalToConstant: 1).isActive = true
         footer.heightAnchor.constraint(equalToConstant: 30).isActive = true
         footer.bottomAnchor.constraint(equalTo: root.bottomAnchor).isActive = true
-        let content = window!.contentView!; content.addSubview(root)
-        NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: content.leadingAnchor), root.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            root.topAnchor.constraint(equalTo: content.topAnchor), root.bottomAnchor.constraint(equalTo: content.bottomAnchor)
-        ])
+        view = root
     }
+
+    func setCompact(_ compact: Bool) {
+        sidebarScroll.isHidden = compact
+        sidebarWidth.constant = compact ? 0 : 178
+        sidebarDocumentWidth.constant = compact ? 178 : 0
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("name"))?.width = compact ? 180 : 390
+        for button in creationButtons {
+            button.imagePosition = compact ? .imageOnly : .imageLeading
+            button.toolTip = button.title
+        }
+        hiddenButton.title = compact ? "Hidden" : "Hidden Files"
+    }
+
+    func showWindow(_ sender: Any?) { owner?.showWindow(sender) }
 
     func iconButton(_ label: String, _ symbol: String, action: @escaping () -> Void) -> ActionButton {
         let button = ActionButton(label, symbol: symbol, action: action)
@@ -278,10 +288,18 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
             let menu = NSMenu()
             let move = NSMenuItem(title: "Move Tab to New Window", action: #selector(moveTabToWindow(_:)), keyEquivalent: "")
             move.target = self; move.representedObject = tab.id
-            menu.addItem(move); button.menu = menu
+            menu.addItem(move)
+            let split = NSMenuItem(title: "Split Tab", action: #selector(splitTab(_:)), keyEquivalent: "")
+            split.target = self; split.representedObject = tab.id
+            menu.addItem(split)
+            if otherPane != nil {
+                let merge = NSMenuItem(title: "Close Split", action: #selector(closeSplit(_:)), keyEquivalent: "")
+                merge.target = self; menu.addItem(merge)
+            }
+            button.menu = menu
             tabsStack.addArrangedSubview(button)
         }
-        window?.title = "\(current.lastPathComponent.isEmpty ? "/" : current.lastPathComponent) — QE"
+        owner?.updateTitle()
         appDelegate?.saveWindows()
     }
     func selectTab(_ index: Int) {
@@ -295,7 +313,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     @objc func moveTabToWindow(_ sender: Any?) {
         let id = (sender as? NSMenuItem)?.representedObject as? UUID
         guard let index = id.flatMap({ id in tabs.firstIndex { $0.id == id } }) ?? (id == nil ? active : nil),
-              tabs.count > 1, operation == nil, let appDelegate else { return }
+              (tabs.count > 1 || otherPane != nil), operation == nil, let appDelegate else { return }
         captureTab()
         let tab = tabs[index]
         let query = index == active && isSearch ? searchField.stringValue : nil
@@ -307,7 +325,11 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     @objc func closeCurrentTab(_ sender: Any?) { closeTab(at: active) }
     func closeTab(at index: Int) {
         guard tabs.indices.contains(index) else { return }
-        if tabs.count == 1 { window?.performClose(nil); return }
+        if tabs.count == 1 {
+            if otherPane != nil { owner?.removePane(self) }
+            else { window?.performClose(nil) }
+            return
+        }
         let closingActive = index == active
         captureTab(); tabs.remove(at: index)
         if index < active { active -= 1 } else if active >= tabs.count { active = tabs.count - 1 }
@@ -343,8 +365,11 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     @objc func focusPath(_ sender: Any?) { window?.makeFirstResponder(pathField); pathField.selectText(nil) }
     @objc func focusSearch(_ sender: Any?) { window?.makeFirstResponder(searchField) }
     @objc func toggleHidden(_ sender: Any?) {
-        preferences.set(!shownHidden, forKey: "showHidden"); hiddenButton.state = shownHidden ? .on : .off
-        if isSearch { startSearch(nil) } else { reloadPreservingSelection() }
+        preferences.set(!shownHidden, forKey: "showHidden")
+        for pane in owner?.panes ?? [self] {
+            pane.hiddenButton.state = shownHidden ? .on : .off
+            if pane.isSearch { pane.startSearch(nil) } else { pane.reloadPreservingSelection() }
+        }
     }
     @objc func becameActive() { refreshSidebar(); if !isSearch { reloadPreservingSelection() } }
     @objc func volumesChanged() { refreshSidebar(); if !isSearch { reloadPreservingSelection() } }
@@ -452,7 +477,7 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { row(forEntry: entries.count) }
-    func tableViewSelectionDidChange(_ notification: Notification) { updateStatus() }
+    func tableViewSelectionDidChange(_ notification: Notification) { updateStatus(); updatePreview() }
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
         guard let descriptor = tableView.sortDescriptors.first else { return }
         sortKey = descriptor.key ?? "name"; ascending = descriptor.ascending
@@ -515,19 +540,11 @@ final class BrowserController: NSWindowController, NSTableViewDataSource, NSTabl
         let destination = entry(at: row).flatMap { $0.canBrowse ? $0.url : nil } ?? current
         transfer(urls, to: destination, move: NSEvent.modifierFlags.contains(.command)); return true
     }
-    func windowDidBecomeKey(_ notification: Notification) {
-        hiddenButton.state = shownHidden ? .on : .off
-        if !isLoading { refresh(nil) }
-    }
-    func windowWillClose(_ notification: Notification) {
+    func stop() {
         captureTab(); generation = UUID()
+        closePreview()
         watcher?.cancel(); watcher = nil; search?.cancel(); search = nil; refreshWork?.cancel()
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
-        appDelegate?.closedWindow(self)
-    }
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if operation != nil { showError(FileProblem.message("Wait for the operation to finish or cancel it before closing the window.")); return false }
-        return true
     }
 }

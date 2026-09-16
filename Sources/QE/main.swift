@@ -1,7 +1,8 @@
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    var browsers: [BrowserController] = []
+    var windows: [BrowserWindowController] = []
+    var browsers: [BrowserController] { windows.flatMap(\.panes) }
     var preferences = UserDefaults.standard
     func applicationDidFinishLaunching(_ notification: Notification) {
         let arguments = CommandLine.arguments
@@ -18,11 +19,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @discardableResult
     func openWindow(tabs: [BrowserTab] = [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)],
-                    active: Int = 0, frame: String? = nil) -> BrowserController {
+                    active: Int = 0, frame: String? = nil, rightTabs: [BrowserTab] = [],
+                    rightActive: Int = 0, focusedPane: Int = 0) -> BrowserController {
         let previous = NSApp.keyWindow ?? browsers.last?.window
-        let browser = BrowserController(tabs: tabs, active: active, preferences: preferences)
-        browser.appDelegate = self
-        browsers.append(browser)
+        let controller = BrowserWindowController(tabs: tabs, active: active, preferences: preferences)
+        controller.appDelegate = self
+        windows.append(controller)
+        let browser = controller.panes[0]
+        if !rightTabs.isEmpty {
+            controller.addPane(BrowserController(tabs: rightTabs, active: rightActive, preferences: preferences))
+        }
         if let frame, let window = browser.window {
             let rect = NSRectFromString(frame)
             if rect.width >= 780 && rect.height >= 450 {
@@ -32,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             browser.window?.cascadeTopLeft(from: NSPoint(x: previous.frame.minX + 24, y: previous.frame.maxY - 24))
         }
         browser.showWindow(nil)
-        browser.window?.makeFirstResponder(browser.table)
+        controller.focusedPane = min(max(0, focusedPane), controller.panes.count - 1)
+        browser.window?.makeFirstResponder(controller.activePane.table)
         saveWindows()
         return browser
     }
@@ -42,7 +49,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for state in saved {
                 guard let paths = state["tabs"] as? [String], !paths.isEmpty else { continue }
                 openWindow(tabs: paths.map { BrowserTab(URL(fileURLWithPath: $0)) },
-                           active: state["activeTab"] as? Int ?? 0, frame: state["frame"] as? String)
+                           active: state["activeTab"] as? Int ?? 0, frame: state["frame"] as? String,
+                           rightTabs: (state["rightTabs"] as? [String] ?? []).map { BrowserTab(URL(fileURLWithPath: $0)) },
+                           rightActive: state["rightActiveTab"] as? Int ?? 0, focusedPane: state["focusedPane"] as? Int ?? 0)
             }
         } else if let paths = preferences.stringArray(forKey: "tabs"), !paths.isEmpty {
             openWindow(tabs: paths.map { BrowserTab(URL(fileURLWithPath: $0)) },
@@ -52,14 +61,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func saveWindows() {
         guard !browsers.isEmpty else { return }
-        preferences.set(browsers.map { browser -> [String: Any] in
-            ["tabs": browser.tabs.map { $0.url.path }, "activeTab": browser.active,
-             "frame": NSStringFromRect(browser.window!.frame)]
+        preferences.set(windows.map { controller -> [String: Any] in
+            let left = controller.panes[0]
+            var state: [String: Any] = ["tabs": left.tabs.map { $0.url.path }, "activeTab": left.active,
+                                       "frame": NSStringFromRect(controller.window!.frame), "focusedPane": controller.focusedPane]
+            if controller.panes.count == 2 {
+                let right = controller.panes[1]
+                state["rightTabs"] = right.tabs.map { $0.url.path }
+                state["rightActiveTab"] = right.active
+            }
+            return state
         }, forKey: "windows")
     }
-    func closedWindow(_ browser: BrowserController) {
-        if browsers.count == 1 { saveWindows() }
-        browsers.removeAll { $0 === browser }
+    func closedWindow(_ controller: BrowserWindowController) {
+        if windows.count == 1 { saveWindows() }
+        windows.removeAll { $0 === controller }
         saveWindows()
     }
     @objc func newWindow(_ sender: Any?) { openWindow() }

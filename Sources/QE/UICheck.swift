@@ -21,7 +21,11 @@ final class UICheck {
     func waitUntil(_ condition: @escaping () -> Bool, then action: @escaping () -> Void, attempts: Int = 200) {
         if condition() { action(); return }
         if attempts == 0 { failures.append("Timed out waiting for UI"); finish(); return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { self.waitUntil(condition, then: action, attempts: attempts - 1) }
+        // Modal panels need to service main-queue callbacks from AppKit's remote view service.
+        // Enter checks from the run loop, rather than keeping a main-queue block on the stack.
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { _ in
+            self.waitUntil(condition, then: action, attempts: attempts - 1)
+        }
     }
     func start() {
         retained = self
@@ -261,7 +265,7 @@ final class UICheck {
         other.window?.performClose(nil)
         expect(app.browsers.count == 1 && browser.preferences.array(forKey: "windows")?.count == 1, "Closed window remains in session")
         browser.window?.makeKeyAndOrderFront(nil)
-        waitUntil({ !self.browser.isLoading }) { self.checkArchiveOpening(self.browser.current) }
+        waitUntil({ !self.browser.isLoading }) { self.checkSplit(self.browser.current) }
     }
     func checkArchiveOpening(_ directory: URL) {
         let archive = directory.appendingPathComponent("sample.ZIP")

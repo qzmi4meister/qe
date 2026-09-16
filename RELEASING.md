@@ -1,6 +1,6 @@
 # Releasing QE
 
-Build on Apple Silicon with macOS 26 and Command Line Tools containing the macOS 26 SDK (Swift 6.2+). `VERSION` contains a version such as `0.4.0`; its tag is `v0.4.0`.
+Build on Apple Silicon with macOS 26 and Command Line Tools containing the macOS 26 SDK (Swift 6.2+). `VERSION` contains a version such as `0.5.0`; its tag is `v0.5.0`.
 
 ## Signing credentials
 

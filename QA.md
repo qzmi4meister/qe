@@ -1,6 +1,6 @@
-# QE 0.4.0 verification
+# QE 0.5.0 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 16.09.2026 for 0.4.0, including multi-window support and archive opening. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 16.09.2026, for 0.5.0, including function keys and split panes. Historical measurements and volume checks are identified separately below.
 
 ## Current checks
 
@@ -17,6 +17,11 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 16.09.2026 for 0.4.0, 
 | Window restoration | Window grouping and active tabs restored; legacy single-window preferences migrated; closed windows removed and last window saved |
 | Cross-window Cut/Paste | File moved with contents preserved, using a private test pasteboard |
 | Operations and window lifecycle | Detaching disabled during a file operation; Quit blocked when another window has an operation |
+| Split panes | Tab context menu splits an inactive or searching tab; history, selection, and sorting preserved; single-tab split creates an independent tab; menu commands follow pane focus |
+| Split lifecycle | Both panes and focused pane restored; merging preserves all tabs; closing or detaching the last tab collapses the pane; a busy pane cannot be removed or merged |
+| Function keys | F2 renames a fixture; F3 previews the selected file in either pane; F5 copies left to right and F6 moves right to left with content checks; F8 requests Trash confirmation and cancellation preserves the file |
+| Folder picker tests | Actual F5/F6 dialogs and their selected destinations checked; the in-process runner completes the modal session directly because `NSSavePanel.ok(_:)` is unimplemented on macOS 26; operations and file contents are still checked end to end |
+| Split layout | Window rendered at compact and normal sizes; panes remain usable; active pane distinguished by tab color |
 | Parent row (`..`) | Navigation, empty directories, filesystem root, tab switching, and sorting checked; copy, rename, and Trash actions unavailable for the parent row |
 | Date and time | Fixed `dd.MM.yyyy HH:mm` format, including a 24-hour afternoon time |
 | English interface | Labels, menus, tooltips, errors, fixtures, and scripts translated; the application declares English as its only supported language |

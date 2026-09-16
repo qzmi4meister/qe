@@ -7,7 +7,7 @@ extension BrowserController {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
             item.keyEquivalentModifierMask = modifiers; return item
         }
-        if NSApp.mainMenu == nil {
+        if NSApp.mainMenu?.item(withTitle: "File") == nil {
             let bar = NSMenu()
             func menu(_ title: String, _ items: [NSMenuItem]) {
                 let root = NSMenuItem(); root.title = title; let menu = NSMenu(title: title)
@@ -22,13 +22,18 @@ extension BrowserController {
                 item("New File", #selector(createFile(_:)), "n"), .separator(),
                 item("New Tab", #selector(newTab(_:)), "t"), item("Close Tab", #selector(closeCurrentTab(_:)), "w"), .separator(),
                 item("Open", #selector(openSelected(_:)), "o"), item("Open With…", #selector(openWith(_:))),
-                item("Reset Default Application", #selector(resetAssociation(_:))), item("Rename…", #selector(renameSelected(_:))),
+                item("Reset Default Application", #selector(resetAssociation(_:))), item("Rename…", #selector(renameSelected(_:)), "\u{F705}", modifiers: []),
+                item("Quick Look", #selector(previewSelected(_:)), "\u{F706}", modifiers: []),
                 item("Move to Trash", #selector(trashSelected(_:)), "\u{8}"), .separator(),
                 item("Create ZIP…", #selector(createZIP(_:))), item("Create 7z…", #selector(create7z(_:))), item("Extract…", #selector(extractArchive(_:)))])
+            let trashKey = item("Move to Trash", #selector(trashSelected(_:)), "\u{F70B}", modifiers: [])
+            trashKey.isHidden = true; trashKey.allowsKeyEquivalentWhenHidden = true
+            bar.items.first { $0.title == "File" }?.submenu?.addItem(trashKey)
             menu("Edit", [item("Cut", #selector(cutFiles(_:)), "x"), item("Copy", #selector(copyFiles(_:)), "c"),
                 item("Paste", #selector(pasteFiles(_:)), "v"), item("Select All", #selector(selectAllFiles(_:)), "a"), .separator(),
                 item("Copy Path", #selector(copyPaths(_:)), "c", modifiers: [.command, .option]),
-                item("Copy To…", #selector(copyTo(_:))), item("Move To…", #selector(moveTo(_:)))])
+                item("Copy To…", #selector(copyTo(_:)), "\u{F708}", modifiers: []),
+                item("Move To…", #selector(moveTo(_:)), "\u{F709}", modifiers: [])])
             menu("View", [item("Show Hidden Files", #selector(toggleHidden(_:)), ".", modifiers: [.command, .shift]),
                 item("Refresh", #selector(refresh(_:)), "r"), item("Go to Path", #selector(focusPath(_:)), "l"),
                 item("Search by Name", #selector(focusSearch(_:)), "f"), item("Show in Folder", #selector(revealSelected(_:)))])
@@ -42,7 +47,7 @@ extension BrowserController {
         }
 
         let context = NSMenu()
-        [item("Open", #selector(openSelected(_:))), item("Open With…", #selector(openWith(_:))),
+        [item("Open", #selector(openSelected(_:))), item("Quick Look", #selector(previewSelected(_:))), item("Open With…", #selector(openWith(_:))),
          item("Reset Default Application", #selector(resetAssociation(_:))), item("Open in New Tab", #selector(openInTab(_:))),
          item("Show in Folder", #selector(revealSelected(_:))), .separator(),
          item("New Folder…", #selector(createFolder(_:))), item("New File…", #selector(createFile(_:))), .separator(),
@@ -58,14 +63,21 @@ extension BrowserController {
         let action = menuItem.action
         if action == #selector(toggleHidden(_:)) { menuItem.state = shownHidden ? .on : .off; return true }
         if [#selector(focusPath(_:)), #selector(focusSearch(_:)), #selector(refresh(_:)), #selector(newTab(_:)), #selector(newWindow(_:)), #selector(closeCurrentTab(_:))].contains(action) { return true }
+        if action == #selector(splitTab(_:)) {
+            return otherPane == nil && operation == nil && tabIndex(for: menuItem) != nil
+        }
+        if action == #selector(closeSplit(_:)) { return otherPane != nil && owner?.panes.allSatisfy { $0.operation == nil } == true }
         if action == #selector(moveTabToWindow(_:)) {
             let id = menuItem.representedObject as? UUID
-            return tabs.count > 1 && operation == nil && (id == nil || tabs.contains { $0.id == id })
+            return (tabs.count > 1 || otherPane != nil) && operation == nil && (id == nil || tabs.contains { $0.id == id })
         }
         if action == #selector(copyPaths(_:)) { return true }
         if window?.firstResponder is NSTextView,
            [#selector(cutFiles(_:)), #selector(copyFiles(_:)), #selector(pasteFiles(_:)), #selector(selectAllFiles(_:))].contains(action) { return true }
         if action == #selector(selectAllFiles(_:)) { return !entries.isEmpty }
+        if window?.firstResponder is NSTextView,
+           [#selector(renameSelected(_:)), #selector(previewSelected(_:)), #selector(copyTo(_:)), #selector(moveTo(_:)), #selector(trashSelected(_:))].contains(action) { return false }
+        if action == #selector(previewSelected(_:)) { return !selected.isEmpty }
         if action == #selector(openSelected(_:)) { return parentSelected || !selected.isEmpty }
         if action == #selector(copyFiles(_:)) { return !selected.isEmpty }
         if action == #selector(openWith(_:)) { return selected.count == 1 && isDocument(selected[0]) }
@@ -98,10 +110,10 @@ extension BrowserController {
         field.selectText(nil)
         return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
     }
-    func chooseDirectory(title: String) -> URL? {
+    func chooseDirectory(title: String, initial: URL? = nil) -> URL? {
         let panel = NSOpenPanel(); panel.title = title; panel.prompt = "Choose"
         panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false; panel.directoryURL = current; panel.showsHiddenFiles = shownHidden
+        panel.allowsMultipleSelection = false; panel.directoryURL = initial ?? current; panel.showsHiddenFiles = shownHidden
         return panel.runModal() == .OK ? panel.url : nil
     }
     func runOperation(_ title: String, work: @escaping (Cancellation, @escaping (String) -> Void) throws -> String) {
@@ -200,11 +212,11 @@ extension BrowserController {
         else { table.selectRowIndexes(IndexSet(integersIn: row(forEntry: 0)..<numberOfRows(in: table)), byExtendingSelection: false) }
     }
     @objc func copyTo(_ sender: Any?) {
-        let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Copy to Folder") else { return }
+        let urls = selected; guard operation == nil, !urls.isEmpty, let directory = chooseDirectory(title: "Copy to Folder", initial: otherPane?.current) else { return }
         transfer(urls, to: directory, move: false)
     }
     @objc func moveTo(_ sender: Any?) {
-        let urls = selected; guard !urls.isEmpty, let directory = chooseDirectory(title: "Move to Folder") else { return }
+        let urls = selected; guard operation == nil, !urls.isEmpty, let directory = chooseDirectory(title: "Move to Folder", initial: otherPane?.current) else { return }
         transfer(urls, to: directory, move: true)
     }
     func resolveConflict(_ target: URL) -> ConflictChoice {

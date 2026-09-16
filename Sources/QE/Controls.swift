@@ -53,6 +53,7 @@ final class FileTable: NSTableView {
 
 final class TabButton: NSButton {
     let closeButton: ActionButton
+    var focusedPane = true { didSet { needsDisplay = true } }
     var selectTab: (() -> Void)?
     var receiveFiles: (([URL], Bool) -> Void)?
     override var state: NSControl.StateValue {
@@ -87,7 +88,7 @@ final class TabButton: NSButton {
     override func draw(_ dirtyRect: NSRect) {
         let selected = state == .on
         if selected {
-            NSColor(srgbRed: 0.13, green: 0.36, blue: 0.72, alpha: 1).setFill()
+            (focusedPane ? NSColor(srgbRed: 0.13, green: 0.36, blue: 0.72, alpha: 1) : NSColor.secondaryLabelColor).setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 0, dy: 1), xRadius: 6, yRadius: 6).fill()
         }
         let paragraph = NSMutableParagraphStyle()

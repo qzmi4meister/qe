@@ -51,10 +51,13 @@ Quit the local `dist/QE.app` before rebuilding it. The application version is se
 - **Dates** use `dd.MM.yyyy` and 24-hour `HH:mm` time in your local time zone.
 - **Path** is editable at the top of the window. The button beside it copies the current path; the context menu copies paths of selected items.
 - **Windows** open with **File → New Window**, **⌘⌥N**, or the window button beside **+**. A new window starts in the current folder. Windows and their tab paths are restored at launch.
-- **Tabs** open with the **+** button and close with the cross inside each tab. The active tab is blue. Right-click a tab and choose **Move Tab to New Window**, or use the same command in the **Window** menu for the active tab. Moving preserves navigation history, sorting, selection, and scroll position; an active search continues in the new window. The command is available when the window has multiple tabs and no file operation is running.
+- **Tabs** open with the **+** button and close with the cross inside each tab. The active tab is blue. Right-click a tab and choose **Move Tab to New Window**, or use the same command in the **Window** menu for the active tab. Moving preserves navigation history, sorting, selection, and scroll position; an active search continues in the new window. The command is available when another tab or pane will remain and no file operation is running in the source pane.
+- **Split**: right-click a tab and choose **Split Tab** to show it in a second pane of the same window. With one tab, this creates another tab at the same folder. Each pane has its own tabs, path, search, and selection; click a pane to direct keyboard commands to it. Drag the divider to resize the panes. **Close Split** in the tab context menu combines the tabs into one pane. Closing or detaching a pane’s last tab also removes that pane. Split mode and tab paths are restored at launch.
 - **Go Up**: double-click the `..` row at the top of the list. It stays above files when sorting and is excluded from file operations. It is hidden at the filesystem root and in search results.
 - **Hidden Files** are shown on first launch. Your choice is saved.
 - **Copy / Cut / Paste**, **Copy To… / Move To…**, **Rename**, and **Move to Trash** are in the context menu.
+- **Quick Look**: press **F3** or choose **Quick Look** to preview selected files without opening their associated application.
+- **Copy To… / Move To…**: **F5 / F6** open a folder picker. In Split, it starts at the other pane’s folder; confirm it or choose another destination.
 - **Drag and drop** into a folder or onto a tab copies files. Hold ⌘ to move them.
 - **Search**: enter part of a name and press Return. Search includes subfolders; clearing the field returns to the directory listing. **Show in Folder** opens a result's parent folder and selects the item.
 - **ZIP / 7z**: double-click an archive to extract it into a folder beside it and open that folder in QE. If the folder already exists, QE chooses a free name. The archive stays intact. **Extract…** lets you choose a destination, and **Open With…** opens the archive in another application. A remembered application choice takes precedence over built-in extraction. Create archives through the context menu.
@@ -78,8 +81,13 @@ When names conflict, choose **Keep Both**, **Skip**, or **Replace**. Replacing a
 | Show hidden files | ⌘⇧. |
 | Refresh | ⌘R |
 | Open / go up | ⌘↓ / ⌘↑ |
-| Rename | Return |
-| Move to Trash | ⌘⌫ |
+| Rename | F2 or Return |
+| Quick Look | F3 |
+| Copy to folder | F5 |
+| Move to folder | F6 |
+| Move to Trash (with confirmation) | F8 or ⌘⌫ |
+
+Depending on your keyboard settings, hold **Fn / 🌐** to use F2–F8 instead of the media and system controls.
 
 ## Limitations
 
@@ -95,7 +103,7 @@ When names conflict, choose **Keep Both**, **Skip**, or **Replace**. Replacing a
 ./scripts/check.sh
 ```
 
-Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. They also verify that releases require signing and notarization credentials. The application then runs with temporary data to check tabs, independent windows, tab movement, session restoration, cross-window Cut/Paste, parent navigation, hidden files, search, selection, and directory updates. Clipboard checks use a private pasteboard. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
+Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. They also verify that releases require signing and notarization credentials. The application then runs with temporary data to check tabs, independent windows, tab movement, session restoration, split panes, function keys, copying and moving between panes, cross-window Cut/Paste, parent navigation, hidden files, search, selection, and directory updates. Clipboard checks use a private pasteboard. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
 
 To measure reading and sorting 10,000 items:
 
