@@ -2,6 +2,20 @@
 
 A lightweight native file manager for macOS 26 and Apple Silicon. Independent windows with tabs, a sidebar for folders and disks, and direct access to file operations.
 
+![QE browsing a demo project with three open tabs](docs/screenshots/browser.png)
+
+## Screenshots
+
+**Split panes.** Open two folders side by side, with independent tabs and selection. Right-click a tab and choose **Split Tab**.
+
+![QE showing demo Projects and Documents folders in split panes](docs/screenshots/split.png)
+
+**Search by name.** Results show their containing folders. Use the magnifying-glass menu to search only the current folder or include subfolders.
+
+![QE searching for reports in demo documents and subfolders](docs/screenshots/search.png)
+
+All screenshots use sample files under `/tmp/QE-Demo`; no personal files or home-directory paths are shown.
+
 ## Install with Homebrew
 
 Requires **macOS 26 or later** and **Apple Silicon (M1 or later)**. The interface is English only.
