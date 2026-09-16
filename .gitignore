@@ -4,3 +4,4 @@ dist/
 .swiftpm/
 *.xcuserstate
 DESIGN.md
+.agents-meta/backlog/phase-1.md

@@ -1,6 +1,6 @@
-# QE 0.6.0 verification
+# QE 0.6.1 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, including search scopes, function keys, and split panes. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, including selection preparation, search scopes, function keys, and split panes. Historical measurements and volume checks are identified separately below.
 
 ## Current checks
 
@@ -8,7 +8,8 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, in
 | --- | --- |
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
-| 14 file-operation and settings scenarios | No failures |
+| 15 file-operation and settings scenarios | No failures in debug and release builds |
+| Top-level selection | Duplicates, nested folders, similar prefixes, symbolic links, missing ancestors, root paths, ordering, and cancellation checked; 1,728 additional input combinations matched the previous implementation |
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
 | Tabs, navigation, hidden files, search, revealing results, directory updates | No failures |
@@ -42,6 +43,10 @@ These checks were performed before the first public release on disposable HFS+ d
 | Writing to a read-only volume | Rejected without removing the source |
 
 ## Resource use and responsiveness
+
+One-time 0.6.1 measurements with `swift run -c release QEChecks --benchmark`: preparing a flat selection of 2,000 files took **0.063 seconds**; 10,000 files took **0.534 seconds**. These measurements include deduplication, ancestor filtering, and path sorting, but exclude copying or moving files. They are not guarantees for other disks or directory layouts.
+
+Copy/Move and Trash prepare the selection on a background queue. Cancellation is checked while collecting unique paths and walking ancestors; archive creation uses the same cancellation checks. Trash confirmation appears after preparation and before any deletion. `./scripts/check.sh --benchmark` passed the core and UI checks, including cancelling that confirmation without deleting the selected file.
 
 One-time local measurements of the 0.1.0 baseline, not guarantees for every disk or directory:
 

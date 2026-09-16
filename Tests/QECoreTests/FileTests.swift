@@ -124,7 +124,43 @@ final class FileTests {
         let dest = try folder("dest")
         let copied = try unwrap(Files.transfer(link, to: dest, move: false, cancellation: Cancellation()) { _ in .replace })
         expectTrue(try FileEntry(url: copied).isLink)
-        expectEqual(Files.topLevelSelection([directory, child, directory]), [directory])
+        expectEqual(try Files.topLevelSelection([directory, child, directory]), [directory])
+    }
+
+    func testTopLevelSelection() throws {
+        let directory = try folder("foo")
+        let sibling = try folder("foobar")
+        let nested = try Files.create(name: "nested", in: directory, directory: true)
+        let child = try file("child.txt", in: nested)
+        let siblingChild = try file("child.txt", in: sibling)
+        let plain = try file("plain.txt")
+        let link = root.appendingPathComponent("shortcut")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: directory)
+        let linkedChild = link.appendingPathComponent("nested/child.txt")
+        let dangling = root.appendingPathComponent("dangling")
+        try FileManager.default.createSymbolicLink(at: dangling, withDestinationURL: root.appendingPathComponent("missing"))
+
+        expectEqual(try Files.topLevelSelection([]), [])
+        expectEqual(try Files.topLevelSelection([child, siblingChild, nested, directory, directory]), [directory, siblingChild])
+        expectEqual(try Files.topLevelSelection([directory, directory.appendingPathComponent("."), child]), [directory])
+        let alternate = directory.appendingPathComponent(".")
+        expectEqual(try Files.topLevelSelection([alternate, directory]), [alternate])
+        expectEqual(try Files.topLevelSelection([plain, sibling, directory]), [directory, sibling, plain])
+        expectEqual(try Files.topLevelSelection([linkedChild, link, directory, child]), [directory, link, linkedChild])
+        expectEqual(try Files.topLevelSelection([dangling, dangling]), [dangling])
+        // Non-directories and missing ancestors must not hide selected descendants.
+        let invalidChild = plain.appendingPathComponent("child")
+        let missing = root.appendingPathComponent("absent")
+        expectEqual(try Files.topLevelSelection([invalidChild, plain]), [plain, invalidChild])
+        expectEqual(try Files.topLevelSelection([missing.appendingPathComponent("child"), missing]), [missing, missing.appendingPathComponent("child")])
+        // Preserve the existing root-selection behavior and terminate at the root.
+        let filesystemRoot = URL(fileURLWithPath: "/")
+        expectEqual(try Files.topLevelSelection([directory, filesystemRoot, filesystemRoot]), [filesystemRoot, directory])
+        let cancelled = Cancellation(); cancelled.cancel()
+        do {
+            _ = try Files.topLevelSelection([directory, child], cancellation: cancelled)
+            expectTrue(false, "Cancelled selection must throw CancellationError")
+        } catch is CancellationError {} // Cancellation must not return a partial selection.
     }
 
     func testSearchNamesHiddenAndNoLinkCycles() throws {
@@ -248,6 +284,15 @@ final class FileTests {
         expectEqual(entries.count, 10_000)
         expectEqual(entries[2].name, "file-2.txt")
         print(String(format: "10,000 entries: read metadata + sort = %.3f s", Date().timeIntervalSince(started)))
+        for count in [500, 1_000, 2_000, 10_000] {
+            let urls = Array(entries.prefix(count).map(\.url).reversed())
+            let expected = urls.sorted { $0.path < $1.path }
+            let selectionStarted = Date()
+            let selection = try Files.topLevelSelection(urls)
+            let elapsed = Date().timeIntervalSince(selectionStarted)
+            expectEqual(selection, expected)
+            print(String(format: "%d entries: top-level selection = %.3f s", count, elapsed))
+        }
     }
 }
 
@@ -288,6 +333,7 @@ func unwrap<T>(_ value: T?) throws -> T {
             ("trash", tests.testTrash),
             ("extension associations, persistence and reset", tests.testFileAssociations),
             ("directory self-copy and symlinks", tests.testDirectorySelfCopyAndLinks),
+            ("top-level selection, duplicates and symlinks", tests.testTopLevelSelection),
             ("recursive name search", tests.testSearchNamesHiddenAndNoLinkCycles),
             ("search scope, hidden files and cancellation", tests.testSearchScope),
             ("ZIP/7z round trips", tests.testArchiveRoundTripAndLiteralNames),

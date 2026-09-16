@@ -236,8 +236,8 @@ extension BrowserController {
     }
     func transfer(_ urls: [URL], to directory: URL, move: Bool) {
         guard operation == nil else { NSSound.beep(); return }
-        let sources = Files.topLevelSelection(urls)
         runOperation(move ? "Moving…" : "Copying…") { [weak self] token, report in
+            let sources = try Files.topLevelSelection(urls, cancellation: token)
             var completed = 0; var skipped = 0; var errors: [String] = []
             var moved: [URL] = []
             for (index, source) in sources.enumerated() {
@@ -267,12 +267,17 @@ extension BrowserController {
     }
     @objc func trashSelected(_ sender: Any?) {
         guard operation == nil else { return }
-        let urls = Files.topLevelSelection(selected); guard !urls.isEmpty else { return }
-        let alert = NSAlert(); alert.messageText = "Move \(urls.count) item(s) to Trash?"
-        alert.informativeText = urls.prefix(5).map(\.lastPathComponent).joined(separator: "\n")
-        alert.addButton(withTitle: "Move to Trash"); alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        runOperation("Moving to Trash…") { token, report in
+        let selection = selected; guard !selection.isEmpty else { return }
+        runOperation("Preparing to move to Trash…") { token, report in
+            let urls = try Files.topLevelSelection(selection, cancellation: token)
+            let confirmed = DispatchQueue.main.sync {
+                guard !token.isCancelled else { return false }
+                let alert = NSAlert(); alert.messageText = "Move \(urls.count) item(s) to Trash?"
+                alert.informativeText = urls.prefix(5).map(\.lastPathComponent).joined(separator: "\n")
+                alert.addButton(withTitle: "Move to Trash"); alert.addButton(withTitle: "Cancel")
+                return alert.runModal() == .alertFirstButtonReturn
+            }
+            guard confirmed else { throw CancellationError() }
             var completed = 0; var errors: [String] = []
             for url in urls {
                 if token.isCancelled { break }

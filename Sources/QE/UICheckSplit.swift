@@ -155,13 +155,23 @@ extension UICheck {
                 self.browser.reload()
                 self.waitUntil({ !self.browser.isLoading }) {
                     self.selectFixture(moved.lastPathComponent, in: self.browser)
-                    self.functionKeyModal(8, in: self.browser) { modal in
+                    var confirmed = false
+                    let dismiss = Timer(timeInterval: 0.3, repeats: false) { _ in
+                        guard let modal = NSApp.modalWindow else { return }
+                        confirmed = true
                         self.expect(modal.contentView.map { self.text(in: $0).contains("Move 1 item(s) to Trash?") } == true, "F8 skipped Trash confirmation")
                         NSApp.abortModal()
                     }
-                    self.expect(FileManager.default.fileExists(atPath: moved.path), "Cancelling F8 removed a file")
-                    self.saveSplitImage("split.png")
-                    self.checkSplitLifecycle(right, directory: directory)
+                    RunLoop.main.add(dismiss, forMode: .modalPanel)
+                    self.pressFunctionKey(8, in: self.browser)
+                    self.expect(self.browser.operation != nil, "F8 did not start background preparation")
+                    self.waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
+                        dismiss.invalidate()
+                        self.expect(confirmed, "F8 did not show Trash confirmation")
+                        self.expect(FileManager.default.fileExists(atPath: moved.path), "Cancelling F8 removed a file")
+                        self.saveSplitImage("split.png")
+                        self.checkSplitLifecycle(right, directory: directory)
+                    }
                 }
             }
         }

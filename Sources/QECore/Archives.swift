@@ -40,7 +40,7 @@ public enum Archives {
     public static func create(_ sources: [URL], at destination: URL, format: String, cancellation: Cancellation) throws {
         guard ["zip", "7z"].contains(format), !sources.isEmpty else { throw FileProblem.message("Select files and choose ZIP or 7z.") }
         guard !Files.exists(destination) else { throw FileProblem.message("An archive with this name already exists.") }
-        let selected = Files.topLevelSelection(sources)
+        let selected = try Files.topLevelSelection(sources, cancellation: cancellation)
         let parent = selected[0].deletingLastPathComponent()
         guard selected.allSatisfy({ $0.deletingLastPathComponent().path == parent.path }) else {
             throw FileProblem.message("Select items from the same folder to create an archive.")

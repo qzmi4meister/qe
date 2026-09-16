@@ -145,15 +145,34 @@ public enum Files {
         return target
     }
 
-    public static func topLevelSelection(_ urls: [URL]) -> [URL] {
+    public static func topLevelSelection(_ urls: [URL], cancellation: Cancellation = Cancellation()) throws -> [URL] {
+        try cancellation.check()
         var seen: Set<String> = []
-        let unique = urls.filter { seen.insert($0.standardizedFileURL.path).inserted }
-        return unique.filter { url in
-            !unique.contains { parent in
-                parent.path != url.path && url.path.hasPrefix(parent.path + "/") &&
-                (try? FileEntry(url: parent)).map { $0.isDirectory && !$0.isLink } == true
+        let unique = try urls.filter {
+            try cancellation.check()
+            return seen.insert($0.standardizedFileURL.path).inserted
+        }
+            .map { (url: $0, path: $0.path) }
+        let selected = Dictionary(uniqueKeysWithValues: unique.map { ($0.path, $0.url) })
+        var directories: [String: Bool] = [:]
+        let result = try unique.filter { item in
+            try cancellation.check()
+            var path = (item.path as NSString).deletingLastPathComponent
+            // Keep lexical ancestry: resolving symlinks would change which items are selected.
+            while !path.isEmpty && path != "/" {
+                try cancellation.check()
+                if let parent = selected[path] {
+                    let isDirectory = directories[path] ??
+                        ((try? FileEntry(url: parent)).map { $0.isDirectory && !$0.isLink } == true)
+                    directories[path] = isDirectory
+                    if isDirectory { return false }
+                }
+                path = (path as NSString).deletingLastPathComponent
             }
-        }.sorted { $0.path < $1.path }
+            return true
+        }.sorted { $0.path < $1.path }.map(\.url)
+        try cancellation.check()
+        return result
     }
 
     @discardableResult public static func transfer(_ source: URL, to directory: URL, move: Bool,
