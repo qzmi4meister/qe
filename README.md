@@ -13,7 +13,7 @@ open -a QE
 
 Homebrew installs a prebuilt application. Xcode, Swift, and additional runtime dependencies are not required.
 
-The release is signed ad hoc and is not notarized by Apple. If macOS blocks the first launch and you trust this build, try opening it, then go to **System Settings → Privacy & Security → Open Anyway**. See [Apple's instructions](https://support.apple.com/en-us/102445).
+Releases from 0.3.1 onward are signed with Developer ID and notarized by Apple. The notarization ticket is attached to the application.
 
 Update:
 
@@ -93,7 +93,7 @@ When names conflict, choose **Keep Both**, **Skip**, or **Replace**. Replacing a
 ./scripts/check.sh
 ```
 
-Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. The application then runs with temporary data to check tabs, parent navigation, hidden files, search, selection, and directory updates. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
+Checks cover file operations, conflicts, cancellation, source recovery after a failed replacement, Trash, search, ZIP/7z, extraction safety, and extension associations. They also verify that releases require signing and notarization credentials. The application then runs with temporary data to check tabs, parent navigation, hidden files, search, selection, and directory updates. A temporary receiver application verifies one-time opening, saved associations, automatic opening by extension, and preservation of the saved choice after a launch error. Reports and window images are written to `.build/ui-check/`.
 
 To measure reading and sorting 10,000 items:
 
@@ -116,7 +116,7 @@ Archives use the system `bsdtar`. QE does not invoke a shell, install background
 
 Report bugs and suggestions in [GitHub Issues](https://github.com/qzmi4meister/qe/issues). For a file-operation bug, include a minimal example using test data, your macOS version, and the expected result. Run `./scripts/check.sh` before submitting a pull request.
 
-[RELEASING.md](RELEASING.md) covers ZIP packaging, publication with `gh`, and Homebrew tap updates. GitHub Actions runs the checks and release build on macOS 26.
+[RELEASING.md](RELEASING.md) covers signing, notarization, ZIP packaging, publication with `gh`, and Homebrew tap updates. GitHub Actions runs the checks and an ad-hoc application build on macOS 26. Release signing and notarization run locally with credentials stored in Keychain.
 
 ## License
 

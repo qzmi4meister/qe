@@ -47,6 +47,6 @@ One-time local measurements of the 0.1.0 baseline, not guarantees for every disk
 - Cancelling a single large file can wait for that file's copy to finish. Completed items are not rolled back.
 - Password-protected archives, multipart archives, and browsing inside archives are unsupported. Compatibility with every metadata variant from other archivers has not been established.
 - UI checks call the real AppKit controllers. A full manual mouse pass, including dragging between applications, has not been completed.
-- Releases are signed ad hoc and are not notarized by Apple. macOS may require first-launch approval in Privacy & Security.
+- Published releases through 0.3.0 are signed ad hoc and may require first-launch approval in Privacy & Security. Releases from 0.3.1 use the signing and notarization checks in [RELEASING.md](RELEASING.md).
 
 Run the main checks with `./scripts/check.sh`. Window images and the machine-readable report are in `.build/ui-check/`; historical large-directory results are in `.build/large-ui-check/`.

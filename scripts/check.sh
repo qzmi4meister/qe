@@ -1,14 +1,27 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
+sh -n scripts/build.sh
+sh -n scripts/release.sh
 swift build
 .build/debug/QEChecks "$@"
 python3 - <<'PY'
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 import plistlib
 import uuid
+
+release_env = {key: value for key, value in os.environ.items()
+               if key not in ('QE_SIGN_IDENTITY', 'QE_NOTARY_PROFILE')}
+for extra, missing in [({}, 'QE_SIGN_IDENTITY'),
+                       ({'QE_SIGN_IDENTITY': 'unused-test-identity'}, 'QE_NOTARY_PROFILE')]:
+    result = subprocess.run(['./scripts/release.sh'], env=release_env | extra,
+                            capture_output=True, text=True)
+    if result.returncode == 0 or missing not in result.stderr:
+        raise RuntimeError(f'Release must reject missing {missing}')
+print('PASS release requires signing identity and notarization profile', flush=True)
 
 with tempfile.TemporaryDirectory(prefix='qe-ui-') as temporary:
     root = Path(temporary)

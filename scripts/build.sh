@@ -40,5 +40,9 @@ cat > "$app_dir/Contents/Info.plist" <<PLIST
 <key>NSHumanReadableCopyright</key><string>Copyright © 2026 qzmi4meister. MIT License.</string>
 </dict></plist>
 PLIST
-codesign --force --sign - "$app_dir"
+if [ -n "${QE_SIGN_IDENTITY:-}" ]; then
+    codesign --force --options runtime --timestamp --sign "$QE_SIGN_IDENTITY" "$app_dir"
+else
+    codesign --force --sign - "$app_dir"
+fi
 printf 'Built: %s\n' "$app_dir"
