@@ -34,7 +34,6 @@ final class ActionButton: NSButton {
 
 final class FileTable: NSTableView {
     var openSelection: (() -> Void)?
-    var renameSelection: (() -> Void)?
     var goUp: (() -> Void)?
     override func menu(for event: NSEvent) -> NSMenu? {
         let row = row(at: convert(event.locationInWindow, from: nil))
@@ -44,7 +43,8 @@ final class FileTable: NSTableView {
         return super.menu(for: event)
     }
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 36 && event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty { renameSelection?(); return }
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if [36, 76].contains(event.keyCode) && modifiers.isEmpty { openSelection?(); return }
         if event.keyCode == 125 && event.modifierFlags.contains(.command) { openSelection?(); return }
         if event.keyCode == 126 && event.modifierFlags.contains(.command) { goUp?(); return }
         super.keyDown(with: event)

@@ -80,7 +80,7 @@ extension UICheck {
                     self.saveSplitImage("split-small.png")
                     self.browser.window?.setContentSize(NSSize(width: 1060, height: 680))
                     right.navigate(directory.appendingPathComponent("Photos"))
-                    self.waitUntil({ !right.isLoading }) { self.checkFunctionKeys(right, directory: directory) }
+                    self.waitUntil({ !right.isLoading }) { self.checkKeyboard(right, directory: directory) }
                 }
             }
         }

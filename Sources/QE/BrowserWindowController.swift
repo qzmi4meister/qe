@@ -110,6 +110,19 @@ final class BrowserWindow: NSWindow {
         return result
     }
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, attachedSheet == nil, NSApp.modalWindow == nil,
+           let owner = windowController as? BrowserWindowController {
+            let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            if event.keyCode == 48, modifiers.isEmpty, firstResponder is FileTable,
+               let other = owner.activePane.otherPane, makeFirstResponder(other.table) { return }
+            if modifiers == .control, let key = event.charactersIgnoringModifiers,
+               key.count == 1, let digit = Int(key), (0...9).contains(digit) {
+                let index = digit == 0 ? 9 : digit - 1
+                let pane = owner.activePane
+                if pane.tabs.indices.contains(index), index != pane.active { pane.selectTab(index) }
+                return
+            }
+        }
         if [.leftMouseDown, .rightMouseDown].contains(event.type), let owner = windowController as? BrowserWindowController,
            let pane = owner.panes.first(where: { $0.view.bounds.contains($0.view.convert(event.locationInWindow, from: nil)) }),
            pane !== owner.activePane {

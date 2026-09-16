@@ -88,14 +88,17 @@ Double-clicking a ZIP or 7z archive extracts it into a folder beside the archive
 | New folder | ⌘⇧N |
 | New file | ⌘N |
 | New / close tab | ⌘T / ⌘W |
+| Switch active pane in Split (from the file list) | Tab |
+| Select tab 1–10 in the active pane | Control + 1…9, 0 |
 | New window | ⌘⌥N |
 | Go to path | ⌘L |
 | Search by name | ⌘F |
 | Copy path | ⌘⌥C |
 | Show hidden files | ⌘⇧. |
 | Refresh | ⌘R |
-| Open / go up | ⌘↓ / ⌘↑ |
-| Rename | F2 or Return |
+| Open | Return / Enter or ⌘↓ |
+| Go up | ⌘↑ |
+| Rename | F2 |
 | Quick Look | F3 |
 | Copy to folder | F5 |
 | Move to folder | F6 |

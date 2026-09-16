@@ -154,7 +154,6 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         table.style = .plain
         table.target = self; table.doubleAction = #selector(openSelected)
         table.openSelection = { [weak self] in self?.openSelected(nil) }
-        table.renameSelection = { [weak self] in self?.renameSelected(nil) }
         table.goUp = { [weak self] in self?.up() }
         table.setAccessibilityLabel("Files")
         for (key, title, width) in [("name", "Name", 390.0), ("size", "Size", 95.0), ("date", "Modified", 145.0), ("parent", "Folder", 250.0)] {
@@ -201,7 +200,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         let footer = inset(horizontal([status, progress, cancelButton]), y: 5)
         let root = WindowBackground(); root.translatesAutoresizingMaskIntoConstraints = false
         let topLine = divider(), bottomLine = divider()
-        let rows = [navigation, tabRow, actions, topLine, body, bottomLine, footer]
+        let rows = [tabRow, navigation, actions, topLine, body, bottomLine, footer]
         for (index, view) in rows.enumerated() {
             view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view)
             view.leadingAnchor.constraint(equalTo: root.leadingAnchor).isActive = true

@@ -385,7 +385,13 @@ final class UICheck {
                     let second = self.browser.current.appendingPathComponent("another.TXT")
                     do { try Data("fixture".utf8).write(to: second) }
                     catch { self.failures.append(error.localizedDescription); self.finish(); return }
-                    self.browser.openFile(second)
+                    self.browser.reload()
+                    self.waitUntil({ !self.browser.isLoading }) {
+                        self.selectFixture(second.lastPathComponent, in: self.browser)
+                        self.browser.window?.makeKeyAndOrderFront(nil)
+                        self.browser.window?.makeFirstResponder(self.browser.table)
+                        self.pressKey("\r", code: 36, in: self.browser)
+                    }
                     self.waitUntil({ received().contains(second.resolvingSymlinksInPath().path) && received().filter { $0 == file.resolvingSymlinksInPath().path }.count >= 2 }) {
                         self.expect(received().filter { $0 == file.resolvingSymlinksInPath().path }.count == 2, "Receiver did not receive both explicit opens")
                         self.browser.launchDocument(file, with: application.deletingLastPathComponent().appendingPathComponent("Missing.app"), remember: true) { error in
