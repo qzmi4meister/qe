@@ -19,7 +19,7 @@ The build script creates an ad-hoc development signature unless `QE_SIGN_IDENTIT
 ./scripts/check.sh
 ```
 
-The script builds and runs `QEChecks`, verifies the release credential requirements, and exercises AppKit controllers against temporary files. UI reports and window images are written to `.build/ui-check/`.
+The script builds and runs `QEChecks`, verifies the release credential requirements, and exercises AppKit controllers against temporary files. UI reports and window images are written to `.build/ui-check/`. The UI runner and its launch flags are compiled only in debug builds.
 
 Reading and sorting benchmark with 10,000 items:
 

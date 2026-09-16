@@ -7,15 +7,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let arguments = CommandLine.arguments
         let start = arguments.firstIndex(of: "--directory").flatMap { arguments.indices.contains($0 + 1) ? URL(fileURLWithPath: arguments[$0 + 1]) : nil }
+        #if DEBUG
         let checkIndex = arguments.firstIndex(of: "--ui-check")
         let checkOutput = checkIndex.flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
         let suite = "local.qe.ui-check." + UUID().uuidString
         if checkOutput != nil { preferences = UserDefaults(suiteName: suite)! }
+        #endif
         restoreWindows(startURL: start)
         NSApp.activate(ignoringOtherApps: true)
+        #if DEBUG
         if let checkOutput, let browser = browsers.first {
             UICheck(browser: browser, output: URL(fileURLWithPath: checkOutput), suite: suite).start()
         }
+        #endif
     }
     @discardableResult
     func openWindow(tabs: [BrowserTab] = [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)],

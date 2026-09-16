@@ -1,3 +1,4 @@
+#if DEBUG
 import AppKit
 import QECore
 
@@ -139,6 +140,16 @@ final class UICheck {
         expect(pane.searchIncludesSubfolders == recursive, "Search scope command targeted another pane")
         expect(pane.searchField.searchMenuTemplate?.items.filter { $0.state == .on }.map(\.tag) == [recursive ? 1 : 0], "Search scope checkmark is incorrect")
     }
+    func checkSearchFocus() {
+        let generation = browser.generation
+        let results = browser.entries.map(\.url)
+        let selection = browser.selected
+        let search = browser.search
+        browser.owner!.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: browser.window))
+        expect(browser.generation == generation && browser.search === search, "Window activation restarted the search")
+        expect(browser.entries.map(\.url) == results && browser.selected == selection, "Window activation lost search results or selection")
+        if let search { expect(!search.isCancelled, "Window activation cancelled the running search") }
+    }
     func checkSearchScope(_ directory: URL) {
         let direct = directory.appendingPathComponent("needle-local.txt")
         do { try Data("scope fixture".utf8).write(to: direct) }
@@ -147,13 +158,19 @@ final class UICheck {
         browser.table.deselectAll(nil)
         browser.searchField.stringValue = "needle"
         browser.startSearch(nil)
+        checkSearchFocus()
         let previousSearch = browser.search!
+        browser.refresh(nil)
+        expect(previousSearch.isCancelled && browser.search !== previousSearch, "Explicit Refresh did not restart the search")
+        let refreshedSearch = browser.search!
         chooseSearchScope(false, in: browser)
-        expect(previousSearch.isCancelled, "Scope change did not cancel previous search")
+        expect(refreshedSearch.isCancelled, "Scope change did not cancel previous search")
         waitUntil({ self.browser.search == nil }) {
             self.expect(self.browser.entries.map(\.name) == ["needle-local.txt"], "This Folder included descendants or stale recursive results")
             self.expect(self.browser.searchField.stringValue == "needle", "Scope change cleared the search query")
             self.expect(self.browser.table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden == true, "This Folder shows a redundant parent column")
+            self.browser.table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+            self.checkSearchFocus()
             self.chooseSearchScope(true, in: self.browser)
             self.waitUntil({ self.browser.search == nil }) {
                 self.expect(Set(self.browser.entries.map(\.name)) == Set(["needle-local.txt", "needle.txt"]), "Recursive search was not restarted")
@@ -467,3 +484,4 @@ final class UICheck {
         } else { exit(failures.isEmpty ? 0 : 1) }
     }
 }
+#endif

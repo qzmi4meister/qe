@@ -84,7 +84,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         for pane in panes {
             pane.hiddenButton.state = pane.shownHidden ? .on : .off
-            if !pane.isLoading { pane.refresh(nil) }
+            if !pane.isLoading && !pane.isSearch { pane.refresh(nil) }
         }
     }
     func windowWillClose(_ notification: Notification) {

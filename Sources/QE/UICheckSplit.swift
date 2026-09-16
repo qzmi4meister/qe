@@ -1,3 +1,4 @@
+#if DEBUG
 import AppKit
 import QuickLookUI
 import QECore
@@ -266,3 +267,4 @@ extension UICheck {
         }
     }
 }
+#endif

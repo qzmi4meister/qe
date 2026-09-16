@@ -1,6 +1,6 @@
-# QE 0.6.2 verification
+# QE 0.6.3 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, including archive cancellation, selection preparation, search scopes, function keys, and split panes. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Version 0.6.3 checks cover search preservation on window activation, debug-only UI checks, core scenarios, and the release build. Other UI results below are retained from 0.6.2; the full 0.6.3 UI run failed as described under Practical limits. Historical measurements and volume checks are identified separately below.
 
 ## Current checks
 
@@ -9,6 +9,8 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, in
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
 | 17 file-operation and settings scenarios | No failures in debug and release builds |
+| Search on window activation | A focused AppKit check passed for running and completed searches, preserved results and selection, explicit Refresh restarting the search, and normal directories refreshing. It calls the window activation handler directly; the new search assertions failed before the fix. |
+| Debug-only UI checks | Debug retains the UI runner. The release binary has no `UICheck` symbols or `--ui-check`, `--open-check-app`, `--hold`, report-name, or test-preferences markers. Both bundle version fields are 0.6.3. |
 | Top-level selection | Duplicates, nested folders, similar prefixes, symbolic links, missing ancestors, root paths, ordering, and cancellation checked; 1,728 additional input combinations matched the previous implementation |
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
@@ -70,6 +72,7 @@ One-time local measurements of the 0.1.0 baseline, not guarantees for every disk
 - UI checks call the real AppKit controllers. A full manual mouse pass, including dragging between applications, has not been completed.
 - Local release checks intermittently failed in window focus and F2, and one run timed out in a conflict dialog. A diagnostic rerun passed; the cause is not established. Filename assertions and file-operation checks remain enabled, with more detail on F2 failures.
 - During 0.6.2 verification, three full UI runs failed on pane focus/F2 or timed out. A control run of `main`, the isolated stalled-archive UI check, a diagnostic full run, and the final full run without diagnostics passed. The cause of the intermittent failures remains unestablished; no product focus changes were made.
+- During 0.6.3 verification, the full UI run passed the new search assertions but failed on New Window, pane focus, New Tab, F2, and a subsequent timeout. The focused search check passed separately; the full UI suite is not recorded as passing for this version.
 - Published releases through 0.3.0 are signed ad hoc and may require first-launch approval in Privacy & Security. Releases from 0.3.1 use the signing and notarization checks in [RELEASING.md](RELEASING.md).
 
 Run the main checks with `./scripts/check.sh`. Window images and the machine-readable report are in `.build/ui-check/`; historical large-directory results are in `.build/large-ui-check/`.
