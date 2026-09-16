@@ -128,6 +128,7 @@ final class UICheck {
     }
     func checkWindows(_ directory: URL) {
         guard let app = browser.appDelegate else { failures.append("Missing window owner"); finish(); return }
+        browser.window?.setContentSize(NSSize(width: 1024, height: 642))
         do {
             for index in 0..<60 {
                 try Data().write(to: directory.appendingPathComponent("Projects/window-\(index).txt"))
@@ -155,7 +156,12 @@ final class UICheck {
                     self.expect(other.tabs[0].id == tab.id && other.tabs[0].history == tab.history && other.tabs[0].position == tab.position, "Tab history was lost")
                     self.expect(other.selected.map(\.path) == [file.path], "Moved tab lost selection: saved=\(tab.selection), actual=\(other.selected.map(\.path))")
                     self.expect(other.sortKey == self.browser.sortKey && other.ascending == self.browser.ascending, "Moved tab lost sorting")
-                    self.expect(tab.scroll > 0 && abs(other.scroll.contentView.bounds.origin.y + (other.table.headerView?.frame.height ?? 0) - tab.scroll) < 1, "Moved tab lost scroll position")
+                    let clip = other.scroll.contentView
+                    var requested = clip.bounds
+                    requested.origin.y = tab.scroll - (other.table.headerView?.frame.height ?? 0)
+                    let expectedY = clip.constrainBoundsRect(requested).origin.y
+                    self.expect(tab.scroll > 0 && other.tabs[0].scroll == tab.scroll && abs(clip.bounds.origin.y - expectedY) < 1,
+                                "Moved tab lost scroll position: saved=\(tab.scroll), expected=\(expectedY), actual=\(clip.bounds.origin.y)")
                     self.expect(self.browser.current == directory, "Moving inactive tab changed source directory")
                     self.expect(!other.validateMenuItem(item), "Single tab can be detached")
                     self.expect(NSApp.target(forAction: #selector(BrowserController.newTab(_:))) as? BrowserController === other, "Menu does not target new window")
