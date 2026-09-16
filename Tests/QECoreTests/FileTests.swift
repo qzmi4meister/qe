@@ -141,6 +141,26 @@ final class FileTests {
         expectEqual(Set(found.map(\.name)), Set(["Needle.txt", ".needle"]))
     }
 
+    func testSearchScope() throws {
+        let current = try folder("current")
+        let nested = try Files.create(name: "needle-folder", in: current, directory: true)
+        _ = try file("needle-outside.txt")
+        _ = try file("needle-direct.txt", in: current)
+        _ = try file(".needle-hidden", in: current)
+        _ = try file("needle-nested.txt", in: nested)
+        var found: [FileEntry] = []
+        _ = try Files.search(in: current, query: "NEEDLE", hidden: false, recursive: false, cancellation: Cancellation()) { found += $0 }
+        expectEqual(Set(found.map(\.name)), Set(["needle-direct.txt", "needle-folder"]))
+        found = []
+        _ = try Files.search(in: current, query: "needle", hidden: true, recursive: false, cancellation: Cancellation()) { found += $0 }
+        expectEqual(Set(found.map(\.name)), Set(["needle-direct.txt", "needle-folder", ".needle-hidden"]))
+        found = []
+        _ = try Files.search(in: current, query: "needle", hidden: false, recursive: true, cancellation: Cancellation()) { found += $0 }
+        expectEqual(Set(found.map(\.name)), Set(["needle-direct.txt", "needle-folder", "needle-nested.txt"]))
+        let cancelled = Cancellation(); cancelled.cancel()
+        expectError(try Files.search(in: current, query: "needle", hidden: true, recursive: false, cancellation: cancelled) { _ in })
+    }
+
     func testArchiveRoundTripAndLiteralNames() throws {
         let source = try folder("source")
         let names = ["café with spaces.txt", ".hidden", "-option", "@archive", "line\nbreak", "empty"]
@@ -269,6 +289,7 @@ func unwrap<T>(_ value: T?) throws -> T {
             ("extension associations, persistence and reset", tests.testFileAssociations),
             ("directory self-copy and symlinks", tests.testDirectorySelfCopyAndLinks),
             ("recursive name search", tests.testSearchNamesHiddenAndNoLinkCycles),
+            ("search scope, hidden files and cancellation", tests.testSearchScope),
             ("ZIP/7z round trips", tests.testArchiveRoundTripAndLiteralNames),
             ("archive destination validation", tests.testArchiveDestinationInsideSourceRejected),
             ("corrupt and cancelled archives", tests.testCorruptAndCancelledArchivesLeaveNoOutput),

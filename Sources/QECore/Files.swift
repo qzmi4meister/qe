@@ -87,10 +87,11 @@ public enum Files {
         }
     }
 
-    public static func search(in directory: URL, query: String, hidden: Bool, cancellation: Cancellation,
+    public static func search(in directory: URL, query: String, hidden: Bool, recursive: Bool = true, cancellation: Cancellation,
                               batch: ([FileEntry]) -> Void) throws -> Int {
         var unreadable = 0
         var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
+        if !recursive { options.insert(.skipsSubdirectoryDescendants) }
         if !hidden { options.insert(.skipsHiddenFiles) }
         guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: FileEntry.keys,
             options: options, errorHandler: { _, _ in unreadable += 1; return !cancellation.isCancelled }) else {

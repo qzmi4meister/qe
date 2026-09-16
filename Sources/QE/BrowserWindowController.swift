@@ -131,6 +131,7 @@ extension BrowserController {
         let query = index == active && isSearch ? searchField.stringValue : nil
         let tab = tabs.count == 1 ? BrowserTab(tabs[index].url) : tabs[index]
         let other = BrowserController(tabs: [tab], preferences: preferences)
+        other.searchIncludesSubfolders = searchIncludesSubfolders
         other.table.sortDescriptors = table.sortDescriptors
         // Remove before attaching the second pane so a single-tab source is never closed.
         if tabs.count > 1 { closeTab(at: index) }

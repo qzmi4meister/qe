@@ -127,7 +127,42 @@ final class UICheck {
         catch { failures.append(error.localizedDescription); finish(); return }
         waitUntil({ self.browser.entries.contains { $0.name == "watcher-check.txt" } }) {
             self.browser.closeTab(at: 1)
-            self.waitUntil({ !self.browser.isLoading }) { self.checkWindows(directory) }
+            self.waitUntil({ !self.browser.isLoading }) { self.checkSearchScope(directory) }
+        }
+    }
+    func chooseSearchScope(_ recursive: Bool, in pane: BrowserController) {
+        guard let item = pane.searchField.searchMenuTemplate?.items.first(where: { $0.tag == (recursive ? 1 : 0) }) else {
+            failures.append("Search scope menu item is missing"); return
+        }
+        expect(pane.validateMenuItem(item), "Search scope is disabled without a selected file")
+        NSApp.sendAction(item.action!, to: item.target, from: item)
+        expect(pane.searchIncludesSubfolders == recursive, "Search scope command targeted another pane")
+        expect(pane.searchField.searchMenuTemplate?.items.filter { $0.state == .on }.map(\.tag) == [recursive ? 1 : 0], "Search scope checkmark is incorrect")
+    }
+    func checkSearchScope(_ directory: URL) {
+        let direct = directory.appendingPathComponent("needle-local.txt")
+        do { try Data("scope fixture".utf8).write(to: direct) }
+        catch { failures.append(error.localizedDescription); finish(); return }
+        expect(browser.searchIncludesSubfolders, "Search must include subfolders by default")
+        browser.table.deselectAll(nil)
+        browser.searchField.stringValue = "needle"
+        browser.startSearch(nil)
+        let previousSearch = browser.search!
+        chooseSearchScope(false, in: browser)
+        expect(previousSearch.isCancelled, "Scope change did not cancel previous search")
+        waitUntil({ self.browser.search == nil }) {
+            self.expect(self.browser.entries.map(\.name) == ["needle-local.txt"], "This Folder included descendants or stale recursive results")
+            self.expect(self.browser.searchField.stringValue == "needle", "Scope change cleared the search query")
+            self.expect(self.browser.table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden == true, "This Folder shows a redundant parent column")
+            self.chooseSearchScope(true, in: self.browser)
+            self.waitUntil({ self.browser.search == nil }) {
+                self.expect(Set(self.browser.entries.map(\.name)) == Set(["needle-local.txt", "needle.txt"]), "Recursive search was not restarted")
+                self.expect(self.browser.table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden == false, "Recursive search hides result folders")
+                do { try FileManager.default.removeItem(at: direct) }
+                catch { self.failures.append(error.localizedDescription) }
+                self.browser.leaveSearch(); self.browser.reload()
+                self.waitUntil({ !self.browser.isLoading }) { self.checkWindows(directory) }
+            }
         }
     }
     func checkWindows(_ directory: URL) {
@@ -249,6 +284,7 @@ final class UICheck {
         restored.preferences.set(1, forKey: "activeTab")
         restored.restoreWindows()
         expect(restored.browsers.count == 1 && restored.browsers[0].tabs.count == 2 && restored.browsers[0].active == 1, "Legacy tabs did not migrate")
+        expect(restored.browsers.allSatisfy(\.searchIncludesSubfolders), "Legacy sessions lost recursive search default")
         for window in restored.browsers { window.window?.performClose(nil) }
         restored.preferences.removePersistentDomain(forName: restoreSuite)
 

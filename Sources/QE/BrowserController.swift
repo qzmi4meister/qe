@@ -32,6 +32,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
     let scroll = NSScrollView()
     let pathField = NSTextField()
     let searchField = NSSearchField()
+    var searchIncludesSubfolders = true { didSet { updateSearchScopeMenu() } }
     let sidebar = NSStackView()
     let tabsStack = NSStackView()
     let status = NSTextField(labelWithString: "")
@@ -128,8 +129,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         hiddenButton.state = shownHidden ? .on : .off
         hiddenButton.setAccessibilityLabel("Show Hidden Files")
         hiddenButton.toolTip = "Show hidden files. This setting is saved."
-        searchField.placeholderString = "Search by Name…"
-        searchField.setAccessibilityLabel("Search file and folder names, including subfolders")
+        updateSearchScopeMenu()
         searchField.sendsSearchStringImmediately = false; searchField.sendsWholeSearchString = true
         searchField.target = self; searchField.action = #selector(startSearch)
         searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
@@ -309,7 +309,9 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
     @objc func newTab(_ sender: Any?) {
         captureTab(); tabs.append(BrowserTab(current)); active = tabs.count - 1; leaveSearch(); rebuildTabs(); reload()
     }
-    @objc func newWindow(_ sender: Any?) { appDelegate?.openWindow(tabs: [BrowserTab(current)]) }
+    @objc func newWindow(_ sender: Any?) {
+        appDelegate?.openWindow(tabs: [BrowserTab(current)], searchIncludesSubfolders: searchIncludesSubfolders)
+    }
     @objc func moveTabToWindow(_ sender: Any?) {
         let id = (sender as? NSMenuItem)?.representedObject as? UUID
         guard let index = id.flatMap({ id in tabs.firstIndex { $0.id == id } }) ?? (id == nil ? active : nil),
@@ -317,7 +319,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         captureTab()
         let tab = tabs[index]
         let query = index == active && isSearch ? searchField.stringValue : nil
-        let destination = appDelegate.openWindow(tabs: [tab])
+        let destination = appDelegate.openWindow(tabs: [tab], searchIncludesSubfolders: searchIncludesSubfolders)
         destination.table.sortDescriptors = table.sortDescriptors
         closeTab(at: index)
         if let query { destination.searchField.stringValue = query; destination.startSearch(nil) }
@@ -432,17 +434,39 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         search?.cancel(); search = nil; isSearch = false; searchField.stringValue = ""
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden = true
     }
+    func updateSearchScopeMenu() {
+        let menu = NSMenu()
+        for (tag, title) in ["This Folder", "Include Subfolders"].enumerated() {
+            let item = NSMenuItem(title: title, action: #selector(changeSearchScope(_:)), keyEquivalent: "")
+            item.target = self; item.tag = tag
+            item.state = (tag == 1) == searchIncludesSubfolders ? .on : .off
+            menu.addItem(item)
+        }
+        searchField.searchMenuTemplate = menu
+        searchField.placeholderString = searchIncludesSubfolders ? "Search Folder & Subfolders…" : "Search This Folder…"
+        let description = searchIncludesSubfolders ? "Search names in this folder and its subfolders" : "Search names in this folder only"
+        searchField.setAccessibilityLabel(description)
+        searchField.toolTip = description + ". Click the magnifying glass to change the search scope."
+    }
+    @objc func changeSearchScope(_ sender: NSMenuItem) {
+        let recursive = sender.tag == 1
+        guard recursive != searchIncludesSubfolders else { return }
+        searchIncludesSubfolders = recursive
+        appDelegate?.saveWindows()
+        if isSearch || !searchField.stringValue.isEmpty { startSearch(nil) }
+    }
     @objc func startSearch(_ sender: Any?) {
         let query = searchField.stringValue
         guard !query.isEmpty else { leaveSearch(); reload(); return }
         if !isSearch { captureTab() }
         search?.cancel(); watcher?.cancel(); watcher = nil; refreshWork?.cancel()
         generation = UUID(); let request = generation; let directory = current; let hidden = shownHidden
+        let recursive = searchIncludesSubfolders
         let token = Cancellation(); search = token; isSearch = true; isLoading = false; lastReadError = nil
-        entries = []; hasParentRow = false; table.reloadData(); table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden = false
+        entries = []; hasParentRow = false; table.reloadData(); table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("parent"))?.isHidden = !recursive
         updateStatus()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result { try Files.search(in: directory, query: query, hidden: hidden, cancellation: token) { batch in
+            let result = Result { try Files.search(in: directory, query: query, hidden: hidden, recursive: recursive, cancellation: token) { batch in
                 DispatchQueue.main.async {
                     guard let self, self.generation == request else { return }
                     let selection = Set(self.selected.map(\.path))

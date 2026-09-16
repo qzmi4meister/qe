@@ -99,10 +99,11 @@ extension UICheck {
                 field?.currentEditor()?.string = renamed.lastPathComponent
                 field?.stringValue = renamed.lastPathComponent
                 modal.makeFirstResponder(nil)
+                self.expect(field?.stringValue == renamed.lastPathComponent, "F2 dialog lost the edited filename")
                 NSApp.stopModal(withCode: .alertFirstButtonReturn)
             }
             self.waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
-                self.expect(!FileManager.default.fileExists(atPath: source.path) && FileManager.default.fileExists(atPath: renamed.path), "F2 did not rename fixture")
+                self.expect(!FileManager.default.fileExists(atPath: source.path) && FileManager.default.fileExists(atPath: renamed.path), "F2 did not rename fixture: \(self.browser.completionMessage ?? "no result"), files=\((try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? [])")
                 self.selectFixture(renamed.lastPathComponent, in: self.browser)
                 self.pressFunctionKey(3, in: self.browser)
                 self.waitUntil({ QLPreviewPanel.shared()?.isVisible == true }) {
@@ -208,6 +209,8 @@ extension UICheck {
         expect(!owner.windowShouldClose(browser.window!), "Window close ignored operation in right pane")
         dismiss.invalidate()
         right.operation = nil
+        chooseSearchScope(false, in: right)
+        expect(browser.searchIncludesSubfolders, "Right search scope changed the left pane")
         app.saveWindows()
         let restored = AppDelegate()
         let restoreSuite = suite + ".split-restore"
@@ -217,6 +220,7 @@ extension UICheck {
         expect(restored.windows.count == 1 && restored.browsers.count == 2, "Split session did not restore")
         expect(restored.browsers.map { $0.tabs.map(\.url) } == owner.panes.map { $0.tabs.map(\.url) }, "Split session lost tabs")
         expect(restored.windows.first?.focusedPane == 1, "Split session lost active pane")
+        expect(restored.browsers.map(\.searchIncludesSubfolders) == [true, false], "Split session lost independent search scopes")
         for window in restored.windows { window.window?.performClose(nil) }
         restored.preferences.removePersistentDomain(forName: restoreSuite)
         browser.window?.makeKeyAndOrderFront(nil)
@@ -235,14 +239,18 @@ extension UICheck {
                 self.expect(searchPane.isSearch && searchPane.searchField.stringValue == "needle" && searchPane.entries.count == 1, "Split lost active search")
                 searchPane.closeCurrentTab(nil)
                 self.expect(owner.panes.count == 1 && self.browser.tabs.count == 1, "Closing last pane tab did not collapse split")
+                self.chooseSearchScope(false, in: self.browser)
                 self.browser.splitTab(nil)
                 guard let duplicate = self.browser.otherPane else { self.failures.append("Single tab cannot split"); self.finish(); return }
+                self.expect(!duplicate.searchIncludesSubfolders, "Splitting lost search scope")
                 self.expect(duplicate.current == self.browser.current && duplicate.tabs[0].id != self.browser.tabs[0].id, "Single-tab split did not create independent tab")
                 duplicate.moveTabToWindow(nil)
                 self.expect(owner.panes.count == 1 && app.windows.count == 2, "Detaching last pane tab did not collapse split")
+                self.expect(app.windows.last?.activePane.searchIncludesSubfolders == false, "Detaching lost search scope")
                 app.windows.last?.window?.performClose(nil)
                 self.browser.window?.makeKeyAndOrderFront(nil)
                 self.browser.window?.makeFirstResponder(self.browser.table)
+                self.chooseSearchScope(true, in: self.browser)
                 self.waitUntil({ !self.browser.isLoading }) { self.checkArchiveOpening(directory) }
             }
         }

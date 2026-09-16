@@ -20,14 +20,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @discardableResult
     func openWindow(tabs: [BrowserTab] = [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)],
                     active: Int = 0, frame: String? = nil, rightTabs: [BrowserTab] = [],
-                    rightActive: Int = 0, focusedPane: Int = 0) -> BrowserController {
+                    rightActive: Int = 0, focusedPane: Int = 0,
+                    searchIncludesSubfolders: Bool = true, rightSearchIncludesSubfolders: Bool = true) -> BrowserController {
         let previous = NSApp.keyWindow ?? browsers.last?.window
         let controller = BrowserWindowController(tabs: tabs, active: active, preferences: preferences)
         controller.appDelegate = self
         windows.append(controller)
         let browser = controller.panes[0]
+        browser.searchIncludesSubfolders = searchIncludesSubfolders
         if !rightTabs.isEmpty {
-            controller.addPane(BrowserController(tabs: rightTabs, active: rightActive, preferences: preferences))
+            let right = BrowserController(tabs: rightTabs, active: rightActive, preferences: preferences)
+            right.searchIncludesSubfolders = rightSearchIncludesSubfolders
+            controller.addPane(right)
         }
         if let frame, let window = browser.window {
             let rect = NSRectFromString(frame)
@@ -51,7 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 openWindow(tabs: paths.map { BrowserTab(URL(fileURLWithPath: $0)) },
                            active: state["activeTab"] as? Int ?? 0, frame: state["frame"] as? String,
                            rightTabs: (state["rightTabs"] as? [String] ?? []).map { BrowserTab(URL(fileURLWithPath: $0)) },
-                           rightActive: state["rightActiveTab"] as? Int ?? 0, focusedPane: state["focusedPane"] as? Int ?? 0)
+                           rightActive: state["rightActiveTab"] as? Int ?? 0, focusedPane: state["focusedPane"] as? Int ?? 0,
+                           searchIncludesSubfolders: state["searchIncludesSubfolders"] as? Bool ?? true,
+                           rightSearchIncludesSubfolders: state["rightSearchIncludesSubfolders"] as? Bool ?? true)
             }
         } else if let paths = preferences.stringArray(forKey: "tabs"), !paths.isEmpty {
             openWindow(tabs: paths.map { BrowserTab(URL(fileURLWithPath: $0)) },
@@ -64,11 +70,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.set(windows.map { controller -> [String: Any] in
             let left = controller.panes[0]
             var state: [String: Any] = ["tabs": left.tabs.map { $0.url.path }, "activeTab": left.active,
+                                       "searchIncludesSubfolders": left.searchIncludesSubfolders,
                                        "frame": NSStringFromRect(controller.window!.frame), "focusedPane": controller.focusedPane]
             if controller.panes.count == 2 {
                 let right = controller.panes[1]
                 state["rightTabs"] = right.tabs.map { $0.url.path }
                 state["rightActiveTab"] = right.active
+                state["rightSearchIncludesSubfolders"] = right.searchIncludesSubfolders
             }
             return state
         }, forKey: "windows")

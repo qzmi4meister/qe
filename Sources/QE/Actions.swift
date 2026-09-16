@@ -61,6 +61,10 @@ extension BrowserController {
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let action = menuItem.action
+        if action == #selector(changeSearchScope(_:)) {
+            menuItem.state = (menuItem.tag == 1) == searchIncludesSubfolders ? .on : .off
+            return true
+        }
         if action == #selector(toggleHidden(_:)) { menuItem.state = shownHidden ? .on : .off; return true }
         if [#selector(focusPath(_:)), #selector(focusSearch(_:)), #selector(refresh(_:)), #selector(newTab(_:)), #selector(newWindow(_:)), #selector(closeCurrentTab(_:))].contains(action) { return true }
         if action == #selector(splitTab(_:)) {

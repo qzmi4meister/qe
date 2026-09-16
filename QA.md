@@ -1,6 +1,6 @@
-# QE 0.5.0 verification
+# QE 0.6.0 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 16.09.2026, for 0.5.0, including function keys and split panes. Historical measurements and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026, including search scopes, function keys, and split panes. Historical measurements and volume checks are identified separately below.
 
 ## Current checks
 
@@ -8,10 +8,11 @@ Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked on 16.09.2026, for 0.5.0,
 | --- | --- |
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
-| 13 file-operation and settings scenarios | No failures |
+| 14 file-operation and settings scenarios | No failures |
 | Extension associations | Persistence, case-insensitive matching, replacement, reset, and exclusion of extensionless files checked |
 | Opening with a chosen application | A temporary receiver confirmed one-time opening, saved opening, and automatic opening of a second `.TXT` file; a launch error preserved the saved choice |
 | Tabs, navigation, hidden files, search, revealing results, directory updates | No failures |
+| Search scopes | Direct-only and recursive results, hidden files, cancellation, query preservation, and exclusion of stale results checked; scope menu works without selection; independent pane settings survive session restoration, splitting, and detaching |
 | Independent windows | New Window opens the current folder; menu commands follow the focused window; closing one window preserves the other |
 | Moving tabs to windows | Active search and inactive tabs checked; history, selection, sorting, and scroll position preserved |
 | Window restoration | Window grouping and active tabs restored; legacy single-window preferences migrated; closed windows removed and last window saved |
@@ -58,6 +59,7 @@ One-time local measurements of the 0.1.0 baseline, not guarantees for every disk
 - Cancelling a single large file can wait for that file's copy to finish. Completed items are not rolled back.
 - Password-protected archives, multipart archives, and browsing inside archives are unsupported. Compatibility with every metadata variant from other archivers has not been established.
 - UI checks call the real AppKit controllers. A full manual mouse pass, including dragging between applications, has not been completed.
+- Local release checks intermittently failed in window focus and F2, and one run timed out in a conflict dialog. A diagnostic rerun passed; the cause is not established. Filename assertions and file-operation checks remain enabled, with more detail on F2 failures.
 - Published releases through 0.3.0 are signed ad hoc and may require first-launch approval in Privacy & Security. Releases from 0.3.1 use the signing and notarization checks in [RELEASING.md](RELEASING.md).
 
 Run the main checks with `./scripts/check.sh`. Window images and the machine-readable report are in `.build/ui-check/`; historical large-directory results are in `.build/large-ui-check/`.
