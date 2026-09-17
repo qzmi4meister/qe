@@ -1,11 +1,12 @@
-# QE 0.7.2 verification
+# QE 0.8.0 verification
 
-Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 16.09.2026. Version 0.7.2 passed 18 core scenarios in debug, the full UI suite including tab and Split shortcuts, and the release build. Core scenarios also passed in release mode before this shortcut-only change. Earlier focused checks, failures, historical measurements, and volume checks are identified separately below.
+Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 17.09.2026. Version 0.8.0 passed 18 core scenarios in debug, the full UI suite including custom sidebar folders, and the release application build. Earlier release-mode core checks predate this sidebar change. Earlier focused checks, failures, historical measurements, and volume checks are identified separately below.
 
 ## Current checks
 
 | Check | Result |
 | --- | --- |
+| Custom sidebar folders | The actual + button and folder picker cover cancellation, addition, duplicate picks, and updates across windows and Split panes. Built-in order and absence of removal menus checked. Right-click menu lookup and action remove both available and missing links without deleting folder contents or changing navigation. Renaming a fixture exercises both unavailable-folder dialog choices. Fresh controllers restore saved preferences and preserve removals. Full UI suite passed; `.build/ui-check/sidebar-folders.png` captures the layout. The initial focused run failed on URL equality (directory trailing slash); the assertion now compares paths. |
 | Standalone arm64 application build | Passed |
 | Ad-hoc signature verification with `codesign --verify --strict` | Passed |
 | 18 file-operation and settings scenarios | No failures in debug; release scenarios passed before the 0.7.2 shortcut-only change |

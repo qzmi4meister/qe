@@ -63,6 +63,9 @@ extension BrowserController {
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let action = menuItem.action
+        if action == #selector(removeSidebarFolder(_:)) {
+            return (menuItem.representedObject as? String).map { sidebarFolderPaths.contains($0) } ?? false
+        }
         if action == #selector(changeSearchScope(_:)) {
             menuItem.state = (menuItem.tag == 1) == searchIncludesSubfolders ? .on : .off
             return true

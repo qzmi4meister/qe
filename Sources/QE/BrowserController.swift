@@ -240,12 +240,26 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
 
     func refreshSidebar() {
         sidebar.arrangedSubviews.forEach { sidebar.removeArrangedSubview($0); $0.removeFromSuperview() }
-        func heading(_ title: String) {
+        func heading(_ title: String, addingFolders: Bool = false) {
             let label = NSTextField(labelWithString: title); label.font = .systemFont(ofSize: 11, weight: .semibold); label.textColor = .secondaryLabelColor
-            sidebar.addArrangedSubview(inset(label, x: 4, y: 7))
+            if addingFolders {
+                let add = iconButton("Add Folder to Sidebar", "plus") { [weak self] in self?.addSidebarFolder() }
+                add.isBordered = false
+                let row = inset(horizontal([label, NSView(), add]), x: 4, y: 7)
+                sidebar.addArrangedSubview(row)
+                row.widthAnchor.constraint(equalTo: sidebar.widthAnchor).isActive = true
+            } else { sidebar.addArrangedSubview(inset(label, x: 4, y: 7)) }
         }
-        func place(_ title: String, _ symbol: String, _ url: URL, ejectable: Bool = false) {
-            let button = ActionButton(title, symbol: symbol) { [weak self] in self?.navigate(url) }
+        func place(_ title: String, _ symbol: String, _ url: URL, ejectable: Bool = false, custom: Bool = false) {
+            let button = ActionButton(title, symbol: symbol) { [weak self] in
+                if custom { self?.openSidebarFolder(url) } else { self?.navigate(url) }
+            }
+            if custom {
+                let menu = NSMenu()
+                let remove = NSMenuItem(title: "Remove from Sidebar", action: #selector(removeSidebarFolder(_:)), keyEquivalent: "")
+                remove.target = self; remove.representedObject = url.path
+                menu.addItem(remove); button.menu = menu
+            }
             button.bezelStyle = .recessed; button.alignment = .left; button.lineBreakMode = .byTruncatingMiddle
             button.state = current.standardizedFileURL.path == url.standardizedFileURL.path ? .on : .off
             button.toolTip = url.path
@@ -256,11 +270,12 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             button.widthAnchor.constraint(equalTo: sidebar.widthAnchor, constant: -32).isActive = true
             row.widthAnchor.constraint(equalTo: sidebar.widthAnchor).isActive = true
         }
-        heading("Folders")
-        place("Home", "house", FileManager.default.homeDirectoryForCurrentUser)
-        if let applications = FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask).first { place("Applications", "app.badge", applications) }
-        if let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first { place("Desktop", "menubar.dock.rectangle", desktop) }
-        if let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first { place("Downloads", "arrow.down.circle", downloads) }
+        heading("Folders", addingFolders: true)
+        for (title, symbol, url) in builtInSidebarFolders { place(title, symbol, url) }
+        for path in sidebarFolderPaths {
+            let url = URL(fileURLWithPath: path)
+            place(url.lastPathComponent.isEmpty ? "/" : url.lastPathComponent, "folder", url, custom: true)
+        }
         heading("Disks")
         place("Macintosh HD", "internaldrive", URL(fileURLWithPath: "/"))
         let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeIsInternalKey, .volumeLocalizedNameKey, .volumeIsEjectableKey, .volumeIsRemovableKey], options: [.skipHiddenVolumes]) ?? []
@@ -269,6 +284,55 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             if values?.volumeIsInternal == true { continue }
             place(values?.volumeLocalizedName ?? url.lastPathComponent, "externaldrive", url,
                 ejectable: values?.volumeIsEjectable == true || values?.volumeIsRemovable == true)
+        }
+    }
+
+    var builtInSidebarFolders: [(String, String, URL)] {
+        let manager = FileManager.default
+        var folders = [("Home", "house", manager.homeDirectoryForCurrentUser)]
+        for (title, symbol, directory, domain) in [
+            ("Applications", "app.badge", FileManager.SearchPathDirectory.applicationDirectory, FileManager.SearchPathDomainMask.localDomainMask),
+            ("Desktop", "menubar.dock.rectangle", .desktopDirectory, .userDomainMask),
+            ("Downloads", "arrow.down.circle", .downloadsDirectory, .userDomainMask)
+        ] {
+            if let url = manager.urls(for: directory, in: domain).first { folders.append((title, symbol, url)) }
+        }
+        return folders
+    }
+
+    var sidebarFolderPaths: [String] { preferences.stringArray(forKey: "sidebarFolders") ?? [] }
+
+    func saveSidebarFolders(_ paths: [String]) {
+        preferences.set(paths, forKey: "sidebarFolders")
+        for pane in appDelegate?.browsers ?? owner?.panes ?? [self] { pane.refreshSidebar() }
+    }
+
+    func addSidebarFolder() {
+        guard let url = chooseDirectory(title: "Add Folder to Sidebar") else { return }
+        let path = url.standardizedFileURL.path
+        guard !sidebarFolderPaths.contains(path),
+              !builtInSidebarFolders.contains(where: { $0.2.standardizedFileURL.path == path }) else { return }
+        saveSidebarFolders(sidebarFolderPaths + [path])
+    }
+
+    @objc func removeSidebarFolder(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String else { return }
+        saveSidebarFolders(sidebarFolderPaths.filter { $0 != path })
+    }
+
+    func openSidebarFolder(_ url: URL) {
+        // Opening the directory checks actual read access without loading its contents.
+        if let directory = opendir(url.path) {
+            closedir(directory)
+            if FileManager.default.isExecutableFile(atPath: url.path) { navigate(url); return }
+        }
+        let alert = NSAlert(); alert.messageText = "Folder Unavailable"
+        alert.informativeText = "The folder may have been moved, deleted, or become inaccessible.\n\n\(url.path)\n\nRemove its link from the sidebar? The folder itself will not be deleted."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Remove from Sidebar")
+        if alert.runModal() == .alertSecondButtonReturn {
+            saveSidebarFolders(sidebarFolderPaths.filter { $0 != url.path })
         }
     }
 

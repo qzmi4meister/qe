@@ -40,6 +40,10 @@ final class UICheck {
             self.lastPulse = now
         }
         pulse.resume(); self.pulse = pulse
+        if CommandLine.arguments.contains("--sidebar-check") {
+            checkSidebarFolders { self.finish() }
+            return
+        }
         waitUntil({ !self.browser.isLoading }) {
             self.firstListSeconds = Date().timeIntervalSince(self.started)
             let initial = self.browser.current
@@ -406,7 +410,7 @@ final class UICheck {
                                 NSApp.activate(ignoringOtherApps: true)
                                 self.checkApplicationChooser(file)
                                 self.checkStalledArchiveClosing()
-                                self.finish()
+                                self.checkSidebarFolders { self.finish() }
                             }
                         }
                     }
