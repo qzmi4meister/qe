@@ -68,7 +68,7 @@ When names conflict, the available actions are **Keep Both**, **Skip**, and **Re
 
 Search matches part of a file or folder name and starts on Return. The magnifying-glass menu offers **This Folder** for direct children only and **Include Subfolders** for recursive search, the default. Each pane remembers its scope between launches.
 
-Changing scope reruns the current query. Clearing the field returns to the directory listing. **Show in Folder** opens a result’s parent folder and selects the item.
+Changing scope reruns the current query. Clearing the field returns to the directory listing. **Show in Folder** appears only during search and opens a result’s parent folder with the item selected.
 
 ### Archives
 

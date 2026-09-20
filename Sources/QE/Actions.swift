@@ -95,7 +95,10 @@ extension BrowserController {
             menuItem.title = file.flatMap { FileAssociations.fileExtension(for: $0) }.map { "Reset Application for .\($0)" } ?? "Reset Default Application"
             return file.map { isDocument($0) && associations.application(for: $0) != nil } ?? false
         }
-        if action == #selector(revealSelected(_:)) { return selected.count == 1 }
+        if action == #selector(revealSelected(_:)) {
+            menuItem.isHidden = !isSearch
+            return isSearch && selected.count == 1
+        }
         if action == #selector(openInTab(_:)) { return selected.count == 1 && canBrowse(selected[0]) }
         guard operation == nil else { return false }
         if action == #selector(createFile(_:)) || action == #selector(createFolder(_:)) { return !isSearch && lastReadError == nil }
