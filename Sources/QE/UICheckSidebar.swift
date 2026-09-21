@@ -46,7 +46,7 @@ extension UICheck {
                 self.sidebarModal(add) { window in
                     guard let picker = window as? NSOpenPanel else { NSApp.abortModal(); return }
                     self.expect(picker.canChooseDirectories && !picker.canChooseFiles && !picker.allowsMultipleSelection, "Sidebar picker accepts non-folders")
-                    self.confirmDirectory(picker, destination: folder)
+                    self.confirmDirectory(picker)
                 }
             }
             self.expect(other.sidebarFolderPaths == [folder.path], "Sidebar did not add exactly one link for duplicate picks")

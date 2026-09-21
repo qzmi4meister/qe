@@ -45,21 +45,12 @@ extension UICheck {
         timer.invalidate()
     }
 
-    func confirmDirectory(_ picker: NSOpenPanel, destination: URL, attempts: Int = 100) {
-        // The remote picker can still be loading after its window appears on CI.
-        // NSSavePanel.ok(_:) is unimplemented on macOS 26; finish only at the expected URL.
-        let expected = destination.resolvingSymlinksInPath()
-        if picker.url?.resolvingSymlinksInPath() == expected && picker.directoryURL?.resolvingSymlinksInPath() == expected {
-            NSApp.stopModal(withCode: .OK); return
-        }
-        guard attempts > 0 else {
-            failures.append("Folder picker did not select \(expected.path): \(picker.url?.path ?? "nil")")
-            NSApp.stopModal(withCode: .cancel); return
-        }
-        let timer = Timer(timeInterval: 0.05, repeats: false) { _ in
-            self.confirmDirectory(picker, destination: destination, attempts: attempts - 1)
-        }
-        RunLoop.main.add(timer, forMode: .modalPanel)
+    func confirmDirectory(_ picker: NSOpenPanel) {
+        // NSSavePanel.ok(_:) is unimplemented on macOS 26. Complete its modal session
+        // with the actual selected URL; keep the checks on destination and file contents.
+        expect(picker.url?.resolvingSymlinksInPath() == picker.directoryURL?.resolvingSymlinksInPath(),
+               "Folder picker did not select the intended destination")
+        NSApp.stopModal(withCode: .OK)
     }
 
     func checkSplit(_ directory: URL) {
@@ -135,7 +126,8 @@ extension UICheck {
                         guard let picker = modal as? NSOpenPanel else {
                             self.failures.append("F5 did not open folder picker"); NSApp.abortModal(); return
                         }
-                        self.confirmDirectory(picker, destination: right.current)
+                        self.expect(picker.directoryURL?.resolvingSymlinksInPath() == right.current.resolvingSymlinksInPath(), "F5 destination is not the opposite pane")
+                        self.confirmDirectory(picker)
                     }
                     self.waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
                         let copy = right.current.appendingPathComponent(renamed.lastPathComponent)
@@ -166,7 +158,8 @@ extension UICheck {
                 guard let picker = modal as? NSOpenPanel else {
                     self.failures.append("F6 did not open folder picker"); NSApp.abortModal(); return
                 }
-                self.confirmDirectory(picker, destination: directory)
+                self.expect(picker.directoryURL?.resolvingSymlinksInPath() == directory.resolvingSymlinksInPath(), "F6 destination is not the opposite pane")
+                self.confirmDirectory(picker)
             }
             self.waitUntil({ right.operation == nil && !right.isLoading }) {
                 self.expect(!FileManager.default.fileExists(atPath: source.path) && (try? Data(contentsOf: moved)) == Data("move contents".utf8), "F6 did not move from right to left: \(right.completionMessage ?? "no result"), target=\(moved.path), contents=\((try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? [])")
