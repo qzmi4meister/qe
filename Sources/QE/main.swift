@@ -4,6 +4,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var windows: [BrowserWindowController] = []
     var browsers: [BrowserController] { windows.flatMap(\.panes) }
     var preferences = UserDefaults.standard
+    var settingsController: SettingsController?
+    var didFinishLaunching = false
+    var pendingFolderURLs: [URL] = []
     func applicationDidFinishLaunching(_ notification: Notification) {
         let arguments = CommandLine.arguments
         let start = arguments.firstIndex(of: "--directory").flatMap { arguments.indices.contains($0 + 1) ? URL(fileURLWithPath: arguments[$0 + 1]) : nil }
@@ -13,13 +16,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let suite = "local.qe.ui-check." + UUID().uuidString
         if checkOutput != nil { preferences = UserDefaults(suiteName: suite)! }
         #endif
-        restoreWindows(startURL: start)
+        didFinishLaunching = true
+        if pendingFolderURLs.isEmpty { restoreWindows(startURL: start) }
+        else {
+            openFolders(pendingFolderURLs)
+            pendingFolderURLs.removeAll()
+        }
         NSApp.activate(ignoringOtherApps: true)
         #if DEBUG
         if let checkOutput, let browser = browsers.first {
             UICheck(browser: browser, output: URL(fileURLWithPath: checkOutput), suite: suite).start()
         }
         #endif
+    }
+    func application(_ application: NSApplication, open urls: [URL]) {
+        if didFinishLaunching { openFolders(urls) }
+        else { pendingFolderURLs.append(contentsOf: urls) }
+    }
+    func openFolders(_ urls: [URL]) {
+        let folders = urls.filter { url in
+            guard url.isFileURL else { return false }
+            return (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        }.map(\.standardizedFileURL)
+        if !folders.isEmpty { openWindow(tabs: folders.map { BrowserTab($0) }) }
+        if folders.count != urls.count {
+            if browsers.isEmpty { openWindow() }
+            let alert = NSAlert()
+            alert.messageText = "Could Not Open Folder"
+            alert.informativeText = "QE can open existing local or mounted folders. One or more requested locations are unavailable or are not folders."
+            alert.runModal()
+        }
+    }
+    @objc func showSettings(_ sender: Any?) {
+        if settingsController == nil {
+            settingsController = SettingsController(folderDefaults: FolderDefaults(preferences: preferences))
+        }
+        settingsController?.showWindow(sender)
     }
     @discardableResult
     func openWindow(tabs: [BrowserTab] = [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)],

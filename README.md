@@ -70,6 +70,14 @@ Search matches part of a file or folder name and starts on Return. The magnifyin
 
 Changing scope reruns the current query. Clearing the field returns to the directory listing. **Show in Folder** appears only during search and opens a result’s parent folder with the item selected.
 
+### Default folder application
+
+In **QE → Settings…** (`⌘,`), enable **Open folders in QE by default** to open folders from Terminal (`open .`) and other apps in QE. macOS may ask you to confirm the change. The switch reflects the current system setting; installing or launching QE does not enable it automatically.
+
+Turning the setting off restores your previous folder application, or Finder if that application is no longer installed. Finder remains available, and the Desktop and system Open/Save dialogs are unchanged. Commands that explicitly invoke Finder, including some **Show in Finder** actions, may still use Finder.
+
+To open a folder in QE without changing the default, use `open -a QE /path/to/folder`. Each request opens a new window; multiple folders in one request open as tabs. This works whether QE is running or closed.
+
 ### Archives
 
 Double-clicking a ZIP or 7z archive extracts it into a folder beside the archive and opens that folder in QE. If the folder already exists, QE chooses a free name. The original archive is preserved.

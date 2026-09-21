@@ -40,6 +40,10 @@ final class UICheck {
             self.lastPulse = now
         }
         pulse.resume(); self.pulse = pulse
+        if CommandLine.arguments.contains("--folder-integration-check") {
+            waitUntil({ !self.browser.isLoading }) { self.checkFolderIntegration() }
+            return
+        }
         if CommandLine.arguments.contains("--sidebar-check") {
             checkSidebarFolders { self.finish() }
             return

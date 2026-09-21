@@ -16,7 +16,9 @@ extension BrowserController {
             let quit = NSMenuItem(title: "Quit QE", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
             let about = NSMenuItem(title: "About QE", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
             let hide = NSMenuItem(title: "Hide QE", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-            menu("QE", [about, .separator(), hide, .separator(), quit])
+            let settings = item("Settings…", #selector(AppDelegate.showSettings(_:)), ",")
+            settings.target = NSApp.delegate
+            menu("QE", [about, .separator(), settings, .separator(), hide, .separator(), quit])
             menu("File", [item("New Window", #selector(newWindow(_:)), "n", modifiers: [.command, .option]), .separator(),
                 item("New Folder", #selector(createFolder(_:)), "n", modifiers: [.command, .shift]),
                 item("New File", #selector(createFile(_:)), "n"), .separator(),
