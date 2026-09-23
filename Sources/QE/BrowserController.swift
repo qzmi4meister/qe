@@ -381,7 +381,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         captureTab(); active = index; leaveSearch(); rebuildTabs(); refreshSidebar(); reload()
     }
     @objc func newTab(_ sender: Any?) {
-        captureTab(); tabs.append(BrowserTab(current)); active = tabs.count - 1; leaveSearch(); rebuildTabs(); reload()
+        captureTab(); tabs.append(BrowserTab(FileManager.default.homeDirectoryForCurrentUser)); active = tabs.count - 1; leaveSearch(); rebuildTabs(); reload()
     }
     @objc func newWindow(_ sender: Any?) {
         appDelegate?.openWindow(tabs: [BrowserTab(current)], searchIncludesSubfolders: searchIncludesSubfolders)

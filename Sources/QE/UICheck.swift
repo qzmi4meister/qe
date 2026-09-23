@@ -61,7 +61,12 @@ final class UICheck {
             self.views(in: self.browser.view).compactMap { $0 as? ActionButton }
                 .first { $0.toolTip == "New Tab" }?.performClick(nil)
             self.expect(self.browser.tabs.count == 2, "Tab creation failed")
+            self.expect(self.browser.active == 1 && self.browser.current == FileManager.default.homeDirectoryForCurrentUser,
+                        "New Tab button did not open Home")
+            self.expect(self.browser.tabs[0].url == initial && self.browser.tabs[1].history.count == 1,
+                        "New Tab changed the original tab or inherited its history")
             self.checkTabRow(self.browser)
+            self.browser.navigate(initial)
             self.browser.toggleHidden(nil)
             self.waitUntil({ !self.browser.isLoading }) {
                 self.expect(self.browser.entries.count < count, "Hidden toggle failed")
@@ -230,6 +235,7 @@ final class UICheck {
                     self.expect(NSApp.target(forAction: #selector(BrowserController.newTab(_:))) as? BrowserController === other, "Menu does not target new window")
                     NSApp.sendAction(#selector(BrowserController.newTab(_:)), to: nil, from: nil)
                     self.expect(other.tabs.count == 2 && self.browser.tabs.count == 1, "Menu changed wrong window")
+                    self.expect(other.current == FileManager.default.homeDirectoryForCurrentUser, "New Tab menu did not open Home")
                     self.browser.window?.makeKeyAndOrderFront(nil)
                     NSApp.sendAction(#selector(BrowserController.newTab(_:)), to: nil, from: nil)
                     self.expect(self.browser.tabs.count == 2 && other.tabs.count == 2, "Menu did not follow window focus")
@@ -244,6 +250,7 @@ final class UICheck {
     func checkSearchWindow(_ directory: URL) {
         let app = browser.appDelegate!
         browser.newTab(nil)
+        browser.navigate(directory)
         browser.searchField.stringValue = "needle"
         browser.startSearch(nil)
         waitUntil({ self.browser.search == nil }) {
