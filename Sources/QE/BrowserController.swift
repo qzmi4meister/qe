@@ -118,9 +118,8 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             tabDocument.heightAnchor.constraint(equalTo: tabScroll.contentView.heightAnchor)
         ])
         tabScroll.heightAnchor.constraint(equalToConstant: 34).isActive = true
-        let addTab = iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) }
         let addWindow = iconButton("New Window", "macwindow") { [weak self] in self?.newWindow(nil) }
-        let tabRow = inset(horizontal([tabScroll, addTab, addWindow]), y: 2)
+        let tabRow = inset(horizontal([tabScroll, addWindow]), y: 2)
 
         let folder = ActionButton("New Folder", symbol: "folder.badge.plus") { [weak self] in self?.createFolder(nil) }
         let file = ActionButton("New File", symbol: "doc.badge.plus") { [weak self] in self?.createFile(nil) }
@@ -364,6 +363,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             button.menu = menu
             tabsStack.addArrangedSubview(button)
         }
+        tabsStack.addArrangedSubview(iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) })
         owner?.updateTitle()
         appDelegate?.saveWindows()
     }
