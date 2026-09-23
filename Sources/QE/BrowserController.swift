@@ -110,16 +110,19 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         tabsStack.orientation = .horizontal; tabsStack.spacing = 4; tabsStack.alignment = .centerY
         tabsStack.distribution = .fillEqually
         let tabArea = NSView()
+        let addTab = iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) }
         tabsStack.translatesAutoresizingMaskIntoConstraints = false; tabArea.addSubview(tabsStack)
+        addTab.translatesAutoresizingMaskIntoConstraints = false; tabArea.addSubview(addTab)
         NSLayoutConstraint.activate([
             tabsStack.leadingAnchor.constraint(equalTo: tabArea.leadingAnchor),
-            tabsStack.trailingAnchor.constraint(lessThanOrEqualTo: tabArea.trailingAnchor),
             tabsStack.centerYAnchor.constraint(equalTo: tabArea.centerYAnchor),
+            addTab.leadingAnchor.constraint(equalTo: tabsStack.trailingAnchor, constant: 4),
+            addTab.trailingAnchor.constraint(lessThanOrEqualTo: tabArea.trailingAnchor),
+            addTab.centerYAnchor.constraint(equalTo: tabArea.centerYAnchor),
             tabArea.heightAnchor.constraint(equalToConstant: 34)
         ])
         let addWindow = iconButton("New Window", "macwindow") { [weak self] in self?.newWindow(nil) }
-        let addTab = iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) }
-        let tabButtons = horizontal([tabArea, addWindow, addTab])
+        let tabButtons = horizontal([tabArea, addWindow])
         tabButtons.distribution = .fill
         let tabRow = inset(tabButtons, y: 2)
 

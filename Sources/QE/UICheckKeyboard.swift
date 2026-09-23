@@ -11,10 +11,12 @@ extension UICheck {
         }
         let addFrame = add.convert(add.bounds, to: pane.view)
         let lastFrame = last.convert(last.bounds, to: pane.view)
+        let pixel = 1 / (pane.window?.backingScaleFactor ?? 1)
         expect(pane.tabsStack.enclosingScrollView == nil, "Tab row scrolls horizontally")
         expect(buttons.count == pane.tabs.count && buttons.allSatisfy { !$0.isHidden && $0.frame.width > 0 }, "Tabs disappeared on overflow")
-        expect(buttons.allSatisfy { $0.frame.width <= 175.5 && abs($0.frame.width - first.frame.width) < 1 }, "Tabs do not shrink evenly")
-        expect(lastFrame.maxX <= addFrame.minX && abs(addFrame.maxX - (pane.view.bounds.maxX - 12)) < 1, "New Tab is not fixed at the right edge")
+        expect(buttons.allSatisfy { $0.frame.width <= 175.5 && abs($0.frame.width - first.frame.width) <= pixel + 0.01 }, "Tabs do not shrink evenly: \(buttons.map { $0.frame.width })")
+        expect(abs(addFrame.minX - lastFrame.maxX - 4) <= pixel + 0.01, "New Tab is not immediately after the last tab")
+        expect(addFrame.maxX <= pane.view.bounds.maxX - 12 && addFrame.width >= 30 - pixel, "New Tab is clipped or compressed")
         expect(abs(addFrame.midY - lastFrame.midY) < 1, "Tab row buttons shifted vertically")
         expect(buttons.allSatisfy { $0.closeButton.isHidden == ($0.bounds.width < 60) }, "Narrow tab close buttons overlap")
     }
