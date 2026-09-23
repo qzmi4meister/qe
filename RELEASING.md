@@ -18,7 +18,7 @@ export QE_SIGN_IDENTITY='Developer ID Application: NAME (TEAMID)'
 export QE_NOTARY_PROFILE=QE-notary
 ```
 
-Keep private keys and passwords outside the repository. GitHub Actions checks the app without signing credentials; publication runs locally.
+Keep private keys and passwords outside the repository. GitHub Actions only builds the app without signing credentials; tests and publication run locally.
 
 ## Check and package
 

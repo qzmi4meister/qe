@@ -42,6 +42,6 @@ Archive operations use the system `bsdtar`.
 
 ## CI and releases
 
-`.github/workflows/ci.yml` runs the checks and an ad-hoc application build on macOS 26. Signing and notarization run locally with credentials stored in Keychain.
+`.github/workflows/ci.yml` only builds the ad-hoc application on macOS 26. Run `./scripts/check.sh` locally before release; CI does not run tests. Signing and notarization run locally with credentials stored in Keychain.
 
 [RELEASING.md](../../../RELEASING.md) defines packaging, GitHub publication, and Homebrew tap updates.
