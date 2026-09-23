@@ -18,12 +18,12 @@ export QE_SIGN_IDENTITY='Developer ID Application: NAME (TEAMID)'
 export QE_NOTARY_PROFILE=QE-notary
 ```
 
-Keep private keys and passwords outside the repository. GitHub Actions only builds the app without signing credentials; tests and publication run locally.
+Keep private keys and passwords outside the repository. Tests, builds, and publication run locally.
 
 ## Check and package
 
 1. Update `VERSION` and the documentation, then run `./scripts/check.sh`.
-2. Commit the changes, push `main`, and wait for CI to pass.
+2. Commit the changes and push `main`.
 3. Run `./scripts/release.sh` from a clean checkout of the commit to be tagged.
 
 The script requires both environment variables. It builds separately from `dist/QE.app`, signs with Hardened Runtime and a secure timestamp, waits for Apple to accept the submission, attaches the notarization ticket, and checks the signature and Gatekeeper assessment. Only then does it create:

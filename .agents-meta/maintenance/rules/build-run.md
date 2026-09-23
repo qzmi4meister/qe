@@ -40,8 +40,8 @@ Additional `.build/debug/QEChecks --volume <path>` checks require a separate emp
 
 Archive operations use the system `bsdtar`.
 
-## CI and releases
+## Releases
 
-`.github/workflows/ci.yml` only builds the ad-hoc application on macOS 26. Run `./scripts/check.sh` locally before release; CI does not run tests. Signing and notarization run locally with credentials stored in Keychain.
+Checks, builds, signing, and notarization run locally. Run `./scripts/check.sh` before release. Signing credentials are stored in Keychain.
 
 [RELEASING.md](../../../RELEASING.md) defines packaging, GitHub publication, and Homebrew tap updates.
