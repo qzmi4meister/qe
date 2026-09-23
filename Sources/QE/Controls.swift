@@ -85,6 +85,10 @@ final class TabButton: NSButton {
         ])
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func layout() {
+        super.layout()
+        closeButton.isHidden = bounds.width < 60
+    }
     override func draw(_ dirtyRect: NSRect) {
         let selected = state == .on
         if selected {
@@ -100,7 +104,7 @@ final class TabButton: NSButton {
             .paragraphStyle: paragraph
         ])
         let height = label.size().height
-        label.draw(in: NSRect(x: 10, y: (bounds.height - height) / 2, width: max(0, bounds.width - 40), height: height))
+        label.draw(in: NSRect(x: 10, y: (bounds.height - height) / 2, width: max(0, bounds.width - (closeButton.isHidden ? 20 : 40)), height: height))
     }
     @objc private func selectAction() { selectTab?() }
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }

@@ -2,6 +2,23 @@
 import AppKit
 
 extension UICheck {
+    func checkTabRow(_ pane: BrowserController) {
+        pane.view.layoutSubtreeIfNeeded()
+        let buttons = pane.tabsStack.arrangedSubviews.compactMap { $0 as? TabButton }
+        guard let add = views(in: pane.view).compactMap({ $0 as? ActionButton }).first(where: { $0.toolTip == "New Tab" }),
+              let first = buttons.first, let last = buttons.last else {
+            failures.append("Tab row is missing its buttons"); return
+        }
+        let addFrame = add.convert(add.bounds, to: pane.view)
+        let lastFrame = last.convert(last.bounds, to: pane.view)
+        expect(pane.tabsStack.enclosingScrollView == nil, "Tab row scrolls horizontally")
+        expect(buttons.count == pane.tabs.count && buttons.allSatisfy { !$0.isHidden && $0.frame.width > 0 }, "Tabs disappeared on overflow")
+        expect(buttons.allSatisfy { $0.frame.width <= 175.5 && abs($0.frame.width - first.frame.width) < 1 }, "Tabs do not shrink evenly")
+        expect(lastFrame.maxX <= addFrame.minX && abs(addFrame.maxX - (pane.view.bounds.maxX - 12)) < 1, "New Tab is not fixed at the right edge")
+        expect(abs(addFrame.midY - lastFrame.midY) < 1, "Tab row buttons shifted vertically")
+        expect(buttons.allSatisfy { $0.closeButton.isHidden == ($0.bounds.width < 60) }, "Narrow tab close buttons overlap")
+    }
+
     func pressKey(_ key: String, code: UInt16, modifiers: NSEvent.ModifierFlags = [], in pane: BrowserController) {
         let window = pane.window!
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
@@ -37,6 +54,14 @@ extension UICheck {
             let original = pane.tabs
             pane.tabs += (1...9).map { BrowserTab($0 == 9 ? directory.appendingPathComponent("Documents") : pane.current) }
             pane.rebuildTabs()
+            checkTabRow(pane)
+            window.setContentSize(NSSize(width: 780, height: 560))
+            owner.splitController.view.layoutSubtreeIfNeeded()
+            checkTabRow(pane)
+            expect(abs(window.contentView!.bounds.width - 780) < 2 && pane.view.bounds.width < 400, "Tab overflow expanded the window or split pane")
+            expect((pane.tabsStack.arrangedSubviews.first?.frame.width ?? 175) < 60, "Overflow tabs did not shrink")
+            saveSplitImage("tabs-overflow.png")
+            window.setContentSize(NSSize(width: 1060, height: 680))
             for (index, key) in keys.enumerated() {
                 pressKey(key.0, code: key.1, modifiers: .command, in: pane)
                 expect(pane.active == index && owner.activePane === pane, "Command + \(key.0) chose wrong tab or pane")
@@ -46,6 +71,7 @@ extension UICheck {
             pane.tabs = original
             pane.active = 0
             pane.rebuildTabs()
+            checkTabRow(pane)
             pane.reload()
             pressKey("0", code: 29, modifiers: .command, in: pane)
             expect(pane.active == 0 && pane.tabs.count == 1, "Missing tab shortcut changed tabs")

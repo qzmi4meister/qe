@@ -108,18 +108,20 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         let navigation = inset(horizontal([backButton, forwardButton, up, pathField, pathCopy]))
 
         tabsStack.orientation = .horizontal; tabsStack.spacing = 4; tabsStack.alignment = .centerY
-        let tabScroll = NSScrollView(); tabScroll.hasHorizontalScroller = true; tabScroll.autohidesScrollers = true; tabScroll.drawsBackground = false
-        let tabDocument = NSView(); tabDocument.translatesAutoresizingMaskIntoConstraints = false
-        tabsStack.translatesAutoresizingMaskIntoConstraints = false; tabDocument.addSubview(tabsStack)
-        tabScroll.documentView = tabDocument
+        tabsStack.distribution = .fillEqually
+        let tabArea = NSView()
+        tabsStack.translatesAutoresizingMaskIntoConstraints = false; tabArea.addSubview(tabsStack)
         NSLayoutConstraint.activate([
-            tabsStack.leadingAnchor.constraint(equalTo: tabDocument.leadingAnchor), tabsStack.trailingAnchor.constraint(equalTo: tabDocument.trailingAnchor),
-            tabsStack.topAnchor.constraint(equalTo: tabDocument.topAnchor), tabsStack.bottomAnchor.constraint(equalTo: tabDocument.bottomAnchor),
-            tabDocument.heightAnchor.constraint(equalTo: tabScroll.contentView.heightAnchor)
+            tabsStack.leadingAnchor.constraint(equalTo: tabArea.leadingAnchor),
+            tabsStack.trailingAnchor.constraint(lessThanOrEqualTo: tabArea.trailingAnchor),
+            tabsStack.centerYAnchor.constraint(equalTo: tabArea.centerYAnchor),
+            tabArea.heightAnchor.constraint(equalToConstant: 34)
         ])
-        tabScroll.heightAnchor.constraint(equalToConstant: 34).isActive = true
         let addWindow = iconButton("New Window", "macwindow") { [weak self] in self?.newWindow(nil) }
-        let tabRow = inset(horizontal([tabScroll, addWindow]), y: 2)
+        let addTab = iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) }
+        let tabButtons = horizontal([tabArea, addWindow, addTab])
+        tabButtons.distribution = .fill
+        let tabRow = inset(tabButtons, y: 2)
 
         let folder = ActionButton("New Folder", symbol: "folder.badge.plus") { [weak self] in self?.createFolder(nil) }
         let file = ActionButton("New File", symbol: "doc.badge.plus") { [weak self] in self?.createFile(nil) }
@@ -346,7 +348,12 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         for (index, tab) in tabs.enumerated() {
             let button = TabButton(title: tab.url.lastPathComponent.isEmpty ? "/" : tab.url.lastPathComponent) { [weak self] in self?.closeTab(at: index) }
             button.state = index == active ? .on : .off; button.toolTip = tab.url.path
-            button.widthAnchor.constraint(equalToConstant: 175).isActive = true
+            button.widthAnchor.constraint(lessThanOrEqualToConstant: 175).isActive = true
+            let preferredWidth = button.widthAnchor.constraint(equalToConstant: 175)
+            // Stay below fitting-size priority so tabs cannot enlarge the window or split pane.
+            preferredWidth.priority = NSLayoutConstraint.Priority(25); preferredWidth.isActive = true
+            button.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+            button.setContentCompressionResistancePriority(NSLayoutConstraint.Priority(1), for: .horizontal)
             button.selectTab = { [weak self] in self?.selectTab(index) }
             button.receiveFiles = { [weak self] urls, move in self?.transfer(urls, to: tab.url, move: move) }
             let menu = NSMenu()
@@ -363,7 +370,6 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             button.menu = menu
             tabsStack.addArrangedSubview(button)
         }
-        tabsStack.addArrangedSubview(iconButton("New Tab", "plus") { [weak self] in self?.newTab(nil) })
         owner?.updateTitle()
         appDelegate?.saveWindows()
     }

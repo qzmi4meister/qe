@@ -57,8 +57,11 @@ final class UICheck {
             self.expect(self.browser.sidebar.frame.width > 120, "Sidebar has no usable width")
             self.expect(self.browser.pathField.stringValue == initial.path, "Path mismatch: \(self.browser.pathField.stringValue) != \(initial.path)")
             let count = self.browser.entries.count
-            self.browser.newTab(nil)
+            self.checkTabRow(self.browser)
+            self.views(in: self.browser.view).compactMap { $0 as? ActionButton }
+                .first { $0.toolTip == "New Tab" }?.performClick(nil)
             self.expect(self.browser.tabs.count == 2, "Tab creation failed")
+            self.checkTabRow(self.browser)
             self.browser.toggleHidden(nil)
             self.waitUntil({ !self.browser.isLoading }) {
                 self.expect(self.browser.entries.count < count, "Hidden toggle failed")
