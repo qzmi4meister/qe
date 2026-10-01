@@ -52,6 +52,13 @@ final class UICheck {
             let date = calendar.date(from: DateComponents(year: 2026, month: 9, day: 15, hour: 21, minute: 5))!
             self.expect(self.browser.dateFormatter.string(from: date) == "15.09.2026 21:05", "Date format must use dd.MM.yyyy and 24-hour time")
             self.expect(self.browser.lastReadError == nil, "Initial directory could not load")
+            let descriptor = self.browser.table.sortDescriptors.first
+            self.expect(descriptor?.key == "date" && descriptor?.ascending == false,
+                        "Initial sort must be newest modified first")
+            for folders in [true, false] {
+                let dates = self.browser.entries.filter { $0.canBrowse == folders }.map(\.modified)
+                self.expect(dates == dates.sorted(by: >), "Initial rows are not newest modified first")
+            }
             self.expect(self.browser.entries.contains { $0.name == ".hidden" }, "Hidden files not shown initially")
             self.expect(self.browser.table.frame.width > 400 && self.browser.table.visibleRect.height > 150, "Table layout too small")
             self.expect(self.browser.sidebar.frame.width > 120, "Sidebar has no usable width")
@@ -109,6 +116,7 @@ final class UICheck {
             table.selectRowIndexes(IndexSet(integer: browser.row(forEntry: last)), byExtendingSelection: false)
             let selected = browser.selected
             table.sortDescriptors = [NSSortDescriptor(key: "name", ascending: false)]
+            expect(browser.sortKey == "name" && !browser.ascending, "Manual sorting did not replace the default")
             expect(browser.selected == selected, "Sorting changed selected file")
             let cell = browser.tableView(table, viewFor: table.tableColumns[0], row: 0) as? NSTableCellView
             expect(cell?.textField?.stringValue == "..", "Sorting moved parent row")

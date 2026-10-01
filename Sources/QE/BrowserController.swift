@@ -54,8 +54,8 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
     static var cutURLs: [URL] = []
     static var cutChange = -1
     var revealURL: URL?
-    var sortKey = "name"
-    var ascending = true
+    var sortKey = "date"
+    var ascending = false
     var shownHidden: Bool { preferences.object(forKey: "showHidden") as? Bool ?? true }
     var current: URL { tabs[active].url }
     var selected: [URL] { table.selectedRowIndexes.compactMap { entry(at: $0)?.url } }
@@ -163,7 +163,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             column.isHidden = key == "parent"
             table.addTableColumn(column)
         }
-        table.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+        table.sortDescriptors = [NSSortDescriptor(key: sortKey, ascending: ascending)]
         table.registerForDraggedTypes([.fileURL]); table.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         table.setDraggingSourceOperationMask(.copy, forLocal: false)
         scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true

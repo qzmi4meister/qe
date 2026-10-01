@@ -1,3 +1,9 @@
+# QE 0.9.1 verification
+
+Checked locally on 01.10.2026. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite after changing the default sort order.
+
+The UI check verifies that the Modified column starts in descending order and that both folder and file groups are ordered newest first. Fixture files have explicit modification times that differ from alphabetical order. Manual sorting still replaces the default and preserves selection.
+
 # QE 0.9.0 verification
 
 Checked locally on 01.10.2026 with macOS 26.5.1, Apple Silicon, and Swift 6.3.2. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite before release.

@@ -29,8 +29,9 @@ with tempfile.TemporaryDirectory(prefix='qe-ui-') as temporary:
     for name in ['Projects', 'Documents', 'Photos']:
         (root / name).mkdir()
     (root / 'Projects' / 'needle.txt').write_text('Search fixture\n')
-    for name in ['Notes.md', 'Shopping List.txt', '.hidden']:
+    for name, modified in [('Notes.md', 1700000300), ('Shopping List.txt', 1700000100), ('.hidden', 1700000200)]:
         (root / name).write_text('UI fixture\n')
+        os.utime(root / name, (modified, modified))
     receiver = root / 'OpenReceiver.app'
     executable = receiver / 'Contents' / 'MacOS' / 'OpenReceiver'
     executable.parent.mkdir(parents=True)

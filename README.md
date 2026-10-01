@@ -62,6 +62,7 @@ For manual installation, [Releases](https://github.com/qzmi4meister/qe/releases)
 - **Quick Look** previews selected files without opening their associated application.
 - **Drag and drop** into a folder or onto a tab copies files. Holding ⌘ during the drop moves them.
 - **Dates** use `dd.MM.yyyy` and 24-hour `HH:mm` time in the local time zone.
+- **Sorting** defaults to modification date, newest first, with folders above files. Click a column heading to change the sort order.
 
 When names conflict, the available actions are **Keep Both**, **Skip**, and **Replace**. Replacing a folder replaces it entirely rather than merging its contents. Deletion sends items to Trash.
 
