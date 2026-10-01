@@ -2,6 +2,95 @@
 import AppKit
 
 extension UICheck {
+    func checkSidebarContextMenu(_ pane: BrowserController, folder: URL) {
+        guard let menu = pane.table.menu,
+              let item = menu.items.first(where: { $0.action == #selector(BrowserController.addSelectedFolderToSidebar(_:)) }),
+              let index = pane.entries.firstIndex(where: { $0.url.resolvingSymlinksInPath().path == folder.resolvingSymlinksInPath().path }) else {
+            failures.append("Add Folder to Sidebar context item or fixture missing"); return
+        }
+        pane.saveSidebarFolders([])
+        let path = pane.entries[index].url.standardizedFileURL.path
+        let history = pane.tabs[pane.active].history
+        pane.table.deselectAll(nil)
+        menu.update()
+        expect(!item.isEnabled, "Sidebar addition enabled without a selection")
+        pane.table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        menu.update()
+        expect(!item.isEnabled, "Sidebar addition enabled for parent row")
+        selectFixture("file.txt", in: pane)
+        menu.update()
+        expect(!item.isEnabled, "Sidebar addition enabled for a file")
+        pane.addSelectedFolderToSidebar(nil)
+        expect(pane.sidebarFolderPaths.isEmpty, "Sidebar action added a file")
+        pane.table.selectRowIndexes(IndexSet(integer: pane.row(forEntry: index)), byExtendingSelection: true)
+        menu.update()
+        expect(!item.isEnabled, "Sidebar addition enabled for mixed selection")
+        selectFixture("file.txt", in: pane)
+        pane.view.layoutSubtreeIfNeeded()
+        let rect = pane.table.rect(ofRow: pane.row(forEntry: index))
+        let point = pane.table.convert(NSPoint(x: 30, y: rect.midY), to: nil)
+        let event = NSEvent.mouseEvent(with: .rightMouseDown, location: point, modifierFlags: [], timestamp: 0,
+            windowNumber: pane.window!.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        let context = pane.table.menu(for: event)
+        context?.update()
+        expect(item.isEnabled && pane.selected.first?.standardizedFileURL.path == path, "Right-click did not target the folder")
+        context?.performActionForItem(at: menu.index(of: item))
+        expect(pane.sidebarFolderPaths == [path], "Context menu did not add the folder")
+        pane.addSelectedFolderToSidebar(nil)
+        expect(pane.sidebarFolderPaths == [path], "Context action added a duplicate")
+        expect(pane.appDelegate!.browsers.allSatisfy { sidebarButton(path, in: $0) != nil },
+               "Context addition did not update other windows")
+        expect(pane.tabs[pane.active].history == history, "Adding a sidebar folder changed navigation")
+        pane.saveSidebarFolders([folder.path])
+    }
+
+    func checkSidebarResize(_ pane: BrowserController, folder: URL) {
+        guard let window = pane.window, let button = sidebarButton(folder.path, in: pane) else {
+            failures.append("Sidebar resize fixture missing"); return
+        }
+        let title = button.title
+        button.title = "My Projects — Папка с очень длинным названием для проверки левой панели"
+        defer { button.title = title }
+        let split = pane.bodySplitController.splitView
+        window.contentView?.layoutSubtreeIfNeeded()
+        let initialWidth = pane.sidebarScroll.frame.width
+        let start = split.convert(NSPoint(x: initialWidth + split.dividerThickness / 2, y: split.bounds.midY), to: nil)
+        let end = NSPoint(x: start.x + 160, y: start.y)
+        let timestamp = ProcessInfo.processInfo.systemUptime
+        func event(_ type: NSEvent.EventType, _ point: NSPoint, _ offset: Double) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: timestamp + offset,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+        NSApp.postEvent(event(.leftMouseDragged, end, 0.01), atStart: false)
+        NSApp.postEvent(event(.leftMouseUp, end, 0.02), atStart: false)
+        window.sendEvent(event(.leftMouseDown, start, 0))
+        window.contentView?.layoutSubtreeIfNeeded()
+        let expandedWidth = pane.sidebarScroll.frame.width
+        expect(expandedWidth > initialWidth + 100, "Dragging the sidebar divider did not expand it")
+        expect(!button.isHidden && button.visibleRect.width > 200 && button.frame.height == 28,
+               "Long folder name lost its row after expanding sidebar")
+        saveSplitImage("sidebar-wide.png")
+        pane.setCompact(true)
+        window.contentView?.layoutSubtreeIfNeeded()
+        expect(pane.bodySplitController.splitViewItems[0].isCollapsed && pane.scroll.frame.width > 700,
+               "Compact pane did not reclaim sidebar space")
+        pane.setCompact(false)
+        window.contentView?.layoutSubtreeIfNeeded()
+        expect(abs(pane.sidebarScroll.frame.width - expandedWidth) < 2, "Leaving compact mode lost sidebar width")
+        split.setPosition(150, ofDividerAt: 0)
+        window.contentView?.layoutSubtreeIfNeeded()
+        expect(!button.isHidden && button.visibleRect.width > 100 && button.frame.height == 28,
+               "Long folder name broke narrow sidebar layout")
+        saveSplitImage("sidebar-narrow.png")
+        split.setPosition(500, ofDividerAt: 0)
+        window.setContentSize(NSSize(width: 780, height: 560))
+        window.contentView?.layoutSubtreeIfNeeded()
+        expect(pane.scroll.frame.width >= 380 && pane.sidebarScroll.frame.width >= 150,
+               "Resizing window squeezed the file list or sidebar below its minimum")
+        window.setContentSize(NSSize(width: 1060, height: 680))
+        split.setPosition(initialWidth, ofDividerAt: 0)
+    }
+
     func sidebarButton(_ path: String, in pane: BrowserController) -> NSButton? {
         views(in: pane.sidebar).compactMap { $0 as? NSButton }.first { $0.toolTip == path }
     }
@@ -24,6 +113,7 @@ extension UICheck {
         let moved = root.appendingPathComponent("Moved")
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("file".utf8).write(to: root.appendingPathComponent("file.txt"))
             try Data("preserve".utf8).write(to: folder.appendingPathComponent("keep.txt"))
         } catch { failures.append(error.localizedDescription); finish(); return }
         let app = browser.appDelegate!
@@ -61,9 +151,11 @@ extension UICheck {
             self.expect(self.sidebarButton(folder.path, in: restored) != nil, "Saved link did not restore in a new controller")
             restored.stop()
             self.browser.owner!.removePane(right)
+            self.checkSidebarResize(self.browser, folder: folder)
             self.saveSplitImage("sidebar-folders.png")
             other.navigate(root)
             self.waitUntil({ !other.isLoading }) {
+                self.checkSidebarContextMenu(other, folder: folder)
                 self.sidebarButton(folder.path, in: other)?.performClick(nil)
                 self.waitUntil({ !other.isLoading }) {
                     self.expect(other.current.path == folder.path && other.lastReadError == nil, "Custom link did not open folder: \(other.current.path), error=\(String(describing: other.lastReadError))")

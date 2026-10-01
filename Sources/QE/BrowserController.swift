@@ -20,8 +20,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
     var window: NSWindow? { owner?.window }
     var otherPane: BrowserController? { owner?.panes.first { $0 !== self } }
     let sidebarScroll = NSScrollView()
-    var sidebarWidth: NSLayoutConstraint!
-    var sidebarDocumentWidth: NSLayoutConstraint!
+    let bodySplitController = NSSplitViewController()
     var creationButtons: [ActionButton] = []
     var previewURLs: [URL] = []
     var tabs: [BrowserTab] = []
@@ -145,10 +144,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         sidebarScroll.drawsBackground = false; sidebarScroll.hasVerticalScroller = true; sidebarScroll.autohidesScrollers = true
         sidebarScroll.documentView = sidebarBody
         sidebarBody.translatesAutoresizingMaskIntoConstraints = false
-        sidebarDocumentWidth = sidebarBody.widthAnchor.constraint(equalTo: sidebarScroll.contentView.widthAnchor)
-        sidebarDocumentWidth.isActive = true
-        sidebarWidth = sidebarScroll.widthAnchor.constraint(equalToConstant: 178)
-        sidebarWidth.isActive = true
+        sidebarBody.widthAnchor.constraint(equalTo: sidebarScroll.contentView.widthAnchor).isActive = true
 
         table.delegate = self; table.dataSource = self
         table.rowHeight = 20; table.intercellSpacing = NSSize(width: 12, height: 0)
@@ -182,20 +178,22 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
             emptyLabel.centerXAnchor.constraint(equalTo: listContainer.centerXAnchor), emptyLabel.centerYAnchor.constraint(equalTo: listContainer.centerYAnchor),
             emptyLabel.widthAnchor.constraint(lessThanOrEqualTo: listContainer.widthAnchor, constant: -48)
         ])
-        let verticalLine = divider(); verticalLine.widthAnchor.constraint(equalToConstant: 1).isActive = true
-        let body = NSView()
+        let sidebarController = NSViewController(); sidebarController.view = sidebarScroll
+        sidebarScroll.setFrameSize(NSSize(width: 178, height: 500))
+        let sidebarItem = NSSplitViewItem(viewController: sidebarController)
+        sidebarItem.minimumThickness = 150
+        sidebarItem.maximumThickness = 500
+        sidebarItem.holdingPriority = NSLayoutConstraint.Priority(251)
+        let listController = NSViewController(); listController.view = listContainer
+        let listItem = NSSplitViewItem(viewController: listController)
+        listItem.minimumThickness = 380
+        bodySplitController.splitView.isVertical = true
+        bodySplitController.splitView.dividerStyle = .thin
+        bodySplitController.addSplitViewItem(sidebarItem)
+        bodySplitController.addSplitViewItem(listItem)
+        addChild(bodySplitController)
+        let body = bodySplitController.view
         body.heightAnchor.constraint(greaterThanOrEqualToConstant: 250).isActive = true
-        for view in [sidebarScroll, verticalLine, listContainer] {
-            view.translatesAutoresizingMaskIntoConstraints = false; body.addSubview(view)
-            view.topAnchor.constraint(equalTo: body.topAnchor).isActive = true
-            view.bottomAnchor.constraint(equalTo: body.bottomAnchor).isActive = true
-        }
-        NSLayoutConstraint.activate([
-            sidebarScroll.leadingAnchor.constraint(equalTo: body.leadingAnchor),
-            verticalLine.leadingAnchor.constraint(equalTo: sidebarScroll.trailingAnchor),
-            listContainer.leadingAnchor.constraint(equalTo: verticalLine.trailingAnchor),
-            listContainer.trailingAnchor.constraint(equalTo: body.trailingAnchor)
-        ])
 
         status.font = .systemFont(ofSize: 11); status.textColor = .secondaryLabelColor; status.lineBreakMode = .byTruncatingMiddle
         status.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -222,9 +220,7 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
     }
 
     func setCompact(_ compact: Bool) {
-        sidebarScroll.isHidden = compact
-        sidebarWidth.constant = compact ? 0 : 178
-        sidebarDocumentWidth.constant = compact ? 178 : 0
+        bodySplitController.splitViewItems[0].isCollapsed = compact
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("name"))?.width = compact ? 180 : 390
         for button in creationButtons {
             button.imagePosition = compact ? .imageOnly : .imageLeading
@@ -265,13 +261,15 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
                 menu.addItem(remove); button.menu = menu
             }
             button.bezelStyle = .recessed; button.alignment = .left; button.lineBreakMode = .byTruncatingMiddle
+            button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             button.state = current.standardizedFileURL.path == url.standardizedFileURL.path ? .on : .off
             button.toolTip = url.path
             button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             var views: [NSView] = [button]
             if ejectable { views.append(iconButton("Eject \(title)", "eject") { [weak self] in self?.eject(url) }) }
             let row = horizontal(views, spacing: 2); sidebar.addArrangedSubview(row)
-            button.widthAnchor.constraint(equalTo: sidebar.widthAnchor, constant: -32).isActive = true
+            row.detachesHiddenViews = false
+            button.widthAnchor.constraint(equalTo: sidebar.widthAnchor, constant: ejectable ? -32 : 0).isActive = true
             row.widthAnchor.constraint(equalTo: sidebar.widthAnchor).isActive = true
         }
         heading("Folders", addingFolders: true)
@@ -313,6 +311,15 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
 
     func addSidebarFolder() {
         guard let url = chooseDirectory(title: "Add Folder to Sidebar") else { return }
+        addSidebarFolder(url)
+    }
+
+    @objc func addSelectedFolderToSidebar(_ sender: Any?) {
+        guard selected.count == 1, let url = selected.first, canBrowse(url) else { return }
+        addSidebarFolder(url)
+    }
+
+    func addSidebarFolder(_ url: URL) {
         let path = url.standardizedFileURL.path
         guard !sidebarFolderPaths.contains(path),
               !builtInSidebarFolders.contains(where: { $0.2.standardizedFileURL.path == path }) else { return }

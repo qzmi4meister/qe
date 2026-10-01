@@ -1,3 +1,14 @@
+# QE 0.9.0 verification
+
+Checked locally on 01.10.2026 with macOS 26.5.1, Apple Silicon, and Swift 6.3.2. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite before release.
+
+- Sidebar resizing: window-dispatched mouse events drag the native divider; long names retain visible, fixed-height rows at narrow and wide widths. Leaving compact mode restores the chosen width, and resizing the window preserves usable minimum widths.
+- Context menu: right-clicking a folder selects it and adds a shared sidebar link without changing navigation. Empty selection, the parent row, files, and mixed selections disable the command; repeated addition does not duplicate the link.
+- Captures: `.build/ui-check/sidebar-wide.png` and `.build/ui-check/sidebar-narrow.png`.
+- Earlier development runs encountered a full-suite timeout and a keyboard-check crash. A diagnostic rerun and the final pre-release full run passed; the intermittent cause remains unestablished.
+
+The following sections record earlier checks and limitations.
+
 # QE 0.8.0 verification
 
 Environment: macOS 26.5.1, arm64, Swift 6.3.2. Checked locally on 17.09.2026. Version 0.8.0 passed 18 core scenarios in debug, the full UI suite including custom sidebar folders, and the release application build. Earlier release-mode core checks predate this sidebar change. Earlier focused checks, failures, historical measurements, and volume checks are identified separately below.

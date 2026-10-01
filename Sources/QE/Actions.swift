@@ -51,6 +51,7 @@ extension BrowserController {
         let context = NSMenu()
         [item("Open", #selector(openSelected(_:))), item("Quick Look", #selector(previewSelected(_:))), item("Open With…", #selector(openWith(_:))),
          item("Reset Default Application", #selector(resetAssociation(_:))), item("Open in New Tab", #selector(openInTab(_:))),
+         item("Add Folder to Sidebar", #selector(addSelectedFolderToSidebar(_:))),
          item("Show in Folder", #selector(revealSelected(_:))), .separator(),
          item("New Folder…", #selector(createFolder(_:))), item("New File…", #selector(createFile(_:))), .separator(),
          item("Copy", #selector(copyFiles(_:))), item("Cut", #selector(cutFiles(_:))), item("Paste", #selector(pasteFiles(_:))),
@@ -100,6 +101,7 @@ extension BrowserController {
             return isSearch && selected.count == 1
         }
         if action == #selector(openInTab(_:)) { return selected.count == 1 && canBrowse(selected[0]) }
+        if action == #selector(addSelectedFolderToSidebar(_:)) { return selected.count == 1 && canBrowse(selected[0]) }
         guard operation == nil else { return false }
         if action == #selector(createFile(_:)) || action == #selector(createFolder(_:)) { return !isSearch && lastReadError == nil }
         if action == #selector(pasteFiles(_:)) { return !isSearch && !clipboardURLs().isEmpty }
