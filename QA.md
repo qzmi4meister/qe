@@ -1,3 +1,12 @@
+# QE 0.9.3 verification
+
+Checked locally on 02.10.2026 with macOS 26.5.1 and Swift 6.3.2. The final debug build and full UI suite passed. The 18 core scenarios and release-credential guards passed earlier during this change; subsequent edits only affected window layout and UI checks.
+
+- New splits start at 50/50; window-dispatched mouse events verify dragging in both directions.
+- An asymmetric 62/38 split in a 1281-point window survives session restoration. Older saved sessions without a divider position restore at 50/50.
+- A focused diagnostic reproduced the unwanted narrow right pane and verified the fix: pane holding priority must exceed default content hugging for restored widths to stick.
+- Earlier UI runs timed out, including one under restricted access. After the layout fix and removal of temporary diagnostics, the complete UI suite passed without failures.
+
 # QE 0.9.2 verification
 
 Checked locally on 01.10.2026. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite after fixing Split pane widths.

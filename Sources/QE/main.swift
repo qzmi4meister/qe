@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @discardableResult
     func openWindow(tabs: [BrowserTab] = [BrowserTab(FileManager.default.homeDirectoryForCurrentUser)],
                     active: Int = 0, frame: String? = nil, rightTabs: [BrowserTab] = [],
-                    rightActive: Int = 0, focusedPane: Int = 0,
+                    rightActive: Int = 0, focusedPane: Int = 0, splitFraction: CGFloat = 0.5,
                     searchIncludesSubfolders: Bool = true, rightSearchIncludesSubfolders: Bool = true) -> BrowserController {
         let previous = NSApp.keyWindow ?? browsers.last?.window
         let controller = BrowserWindowController(tabs: tabs, active: active, preferences: preferences)
@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             browser.window?.cascadeTopLeft(from: NSPoint(x: previous.frame.minX + 24, y: previous.frame.maxY - 24))
         }
         browser.showWindow(nil)
+        controller.restoreSplitFraction(splitFraction)
         controller.focusedPane = min(max(0, focusedPane), controller.panes.count - 1)
         browser.window?.makeFirstResponder(controller.activePane.table)
         saveWindows()
@@ -60,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                            active: state["activeTab"] as? Int ?? 0, frame: state["frame"] as? String,
                            rightTabs: (state["rightTabs"] as? [String] ?? []).map { BrowserTab(URL(fileURLWithPath: $0)) },
                            rightActive: state["rightActiveTab"] as? Int ?? 0, focusedPane: state["focusedPane"] as? Int ?? 0,
+                           splitFraction: state["splitFraction"] as? CGFloat ?? 0.5,
                            searchIncludesSubfolders: state["searchIncludesSubfolders"] as? Bool ?? true,
                            rightSearchIncludesSubfolders: state["rightSearchIncludesSubfolders"] as? Bool ?? true)
             }
@@ -81,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state["rightTabs"] = right.tabs.map { $0.url.path }
                 state["rightActiveTab"] = right.active
                 state["rightSearchIncludesSubfolders"] = right.searchIncludesSubfolders
+                state["splitFraction"] = controller.splitFraction
             }
             return state
         }, forKey: "windows")

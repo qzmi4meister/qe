@@ -5,10 +5,14 @@ import QECore
 final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     weak var appDelegate: AppDelegate?
     let splitController = NSSplitViewController()
-    var equalPaneWidths: NSLayoutConstraint?
     var focusedPane = 0
     var panes: [BrowserController] { splitController.splitViewItems.compactMap { $0.viewController as? BrowserController } }
     var activePane: BrowserController { panes[min(focusedPane, panes.count - 1)] }
+    var splitFraction: CGFloat {
+        guard panes.count == 2 else { return 0.5 }
+        let widths = panes.map { $0.view.frame.width }
+        return widths[0] / max(1, widths[0] + widths[1])
+    }
 
     init(tabs: [BrowserTab], active: Int, preferences: UserDefaults) {
         let window = BrowserWindow(contentRect: NSRect(x: 0, y: 0, width: 1060, height: 680),
@@ -30,20 +34,25 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         pane.owner = self
         let item = NSSplitViewItem(viewController: pane)
         item.minimumThickness = 390
+        // Keep restored widths above the default content hugging priority.
+        item.holdingPriority = NSLayoutConstraint.Priority(251)
         splitController.addSplitViewItem(item)
         updateLayout()
     }
 
     func updateLayout() {
         for pane in panes { pane.setCompact(panes.count == 2); pane.rebuildTabs() }
-        equalPaneWidths?.isActive = false
-        equalPaneWidths = nil
-        if panes.count == 2 {
-            equalPaneWidths = panes[0].view.widthAnchor.constraint(equalTo: panes[1].view.widthAnchor)
-            equalPaneWidths?.isActive = true
-        }
-        splitController.view.layoutSubtreeIfNeeded()
+        restoreSplitFraction(0.5)
         updateTitle()
+    }
+
+    func restoreSplitFraction(_ fraction: CGFloat) {
+        splitController.view.layoutSubtreeIfNeeded()
+        guard panes.count == 2 else { return }
+        let split = splitController.splitView
+        let fraction = fraction.isFinite && fraction > 0 && fraction < 1 ? fraction : 0.5
+        split.setPosition((split.bounds.width - split.dividerThickness) * fraction, ofDividerAt: 0)
+        split.layoutSubtreeIfNeeded()
     }
 
     func focus(_ pane: BrowserController) {

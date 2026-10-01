@@ -4,21 +4,14 @@ import QuickLookUI
 import QECore
 
 extension UICheck {
-    func checkEqualSplit(_ owner: BrowserWindowController) {
+    func checkResizableSplit(_ owner: BrowserWindowController) {
         let split = owner.splitController.splitView
         let window = owner.window!
-        func expectEqualWidths() {
-            split.layoutSubtreeIfNeeded()
-            let widths = owner.panes.map { $0.view.frame.width }
-            expect(widths.count == 2 && abs(widths[0] - widths[1]) <= 1 / window.backingScaleFactor,
-                   "Split panes are not equal width: \(widths)")
-        }
-        for width in [780.0, 1060.0, 1281.0] {
-            window.setContentSize(NSSize(width: width, height: 680))
-            expectEqualWidths()
-        }
-        for delta in [-150.0, 150.0] {
-            let start = split.convert(NSPoint(x: split.bounds.midX, y: split.bounds.midY), to: nil)
+        split.layoutSubtreeIfNeeded()
+        expect(abs(owner.splitFraction - 0.5) < 0.002, "New Split is not centered")
+        for delta in [-100.0, 200.0] {
+            let leftWidth = owner.panes[0].view.frame.width
+            let start = split.convert(NSPoint(x: leftWidth + split.dividerThickness / 2, y: split.bounds.midY), to: nil)
             let end = NSPoint(x: start.x + delta, y: start.y)
             let timestamp = ProcessInfo.processInfo.systemUptime
             func event(_ type: NSEvent.EventType, _ point: NSPoint, _ offset: Double) -> NSEvent {
@@ -28,10 +21,9 @@ extension UICheck {
             NSApp.postEvent(event(.leftMouseDragged, end, 0.01), atStart: false)
             NSApp.postEvent(event(.leftMouseUp, end, 0.02), atStart: false)
             window.sendEvent(event(.leftMouseDown, start, 0))
-            expectEqualWidths()
+            split.layoutSubtreeIfNeeded()
+            expect(abs(owner.panes[0].view.frame.width - leftWidth - delta) < 2, "Split divider did not follow the drag")
         }
-        window.setContentSize(NSSize(width: 1060, height: 680))
-        expectEqualWidths()
     }
 
     func pressSplitKey(close: Bool = false, in pane: BrowserController) {
@@ -114,12 +106,12 @@ extension UICheck {
                     self.browser.window?.makeFirstResponder(self.browser.table)
                     self.expect(owner.activePane === self.browser, "Pane focus did not follow first responder")
                     self.expect(NSApp.target(forAction: #selector(BrowserController.copyTo(_:))) as? BrowserController === self.browser, "Menu does not target left pane")
+                    self.checkResizableSplit(owner)
                     self.browser.window?.setContentSize(NSSize(width: 780, height: 560))
                     owner.splitController.view.layoutSubtreeIfNeeded()
                     self.expect(owner.panes.allSatisfy { $0.scroll.bounds.width >= 380 && $0.scroll.bounds.height > 150 }, "Split panes are too small")
                     self.saveSplitImage("split-small.png")
                     self.browser.window?.setContentSize(NSSize(width: 1060, height: 680))
-                    self.checkEqualSplit(owner)
                     right.navigate(directory.appendingPathComponent("Photos"))
                     self.waitUntil({ !right.isLoading }) { self.checkKeyboard(right, directory: directory) }
                 }
@@ -263,6 +255,10 @@ extension UICheck {
         right.operation = nil
         chooseSearchScope(false, in: right)
         expect(browser.searchIncludesSubfolders, "Right search scope changed the left pane")
+        browser.window?.setContentSize(NSSize(width: 1281, height: 680))
+        owner.restoreSplitFraction(0.62)
+        let fraction = owner.splitFraction
+        expect(abs(fraction - 0.62) < 0.002, "Could not set asymmetric Split fixture")
         app.saveWindows()
         let restored = AppDelegate()
         let restoreSuite = suite + ".split-restore"
@@ -273,6 +269,13 @@ extension UICheck {
         expect(restored.browsers.map { $0.tabs.map(\.url) } == owner.panes.map { $0.tabs.map(\.url) }, "Split session lost tabs")
         expect(restored.windows.first?.focusedPane == 1, "Split session lost active pane")
         expect(restored.browsers.map(\.searchIncludesSubfolders) == [true, false], "Split session lost independent search scopes")
+        expect(abs((restored.windows.first?.splitFraction ?? 0) - fraction) < 0.002, "Split session lost divider position")
+        for window in restored.windows { window.window?.performClose(nil) }
+        var legacy = browser.preferences.array(forKey: "windows") as! [[String: Any]]
+        legacy[0].removeValue(forKey: "splitFraction")
+        restored.preferences.set(legacy, forKey: "windows")
+        restored.restoreWindows()
+        expect(abs((restored.windows.first?.splitFraction ?? 0) - 0.5) < 0.002, "Legacy Split session is not centered")
         for window in restored.windows { window.window?.performClose(nil) }
         restored.preferences.removePersistentDomain(forName: restoreSuite)
         browser.window?.makeKeyAndOrderFront(nil)
