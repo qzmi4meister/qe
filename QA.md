@@ -1,3 +1,9 @@
+# QE 0.9.2 verification
+
+Checked locally on 01.10.2026. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite after fixing Split pane widths.
+
+The UI check verifies equal pane widths at 780, 1060, and 1281 point window sizes and after mouse attempts to drag the divider in both directions. Existing Split lifecycle, keyboard, and resizable sidebar checks also passed.
+
 # QE 0.9.1 verification
 
 Checked locally on 01.10.2026. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite after changing the default sort order.

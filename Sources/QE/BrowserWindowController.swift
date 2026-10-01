@@ -5,6 +5,7 @@ import QECore
 final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     weak var appDelegate: AppDelegate?
     let splitController = NSSplitViewController()
+    var equalPaneWidths: NSLayoutConstraint?
     var focusedPane = 0
     var panes: [BrowserController] { splitController.splitViewItems.compactMap { $0.viewController as? BrowserController } }
     var activePane: BrowserController { panes[min(focusedPane, panes.count - 1)] }
@@ -35,10 +36,13 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     func updateLayout() {
         for pane in panes { pane.setCompact(panes.count == 2); pane.rebuildTabs() }
-        splitController.view.layoutSubtreeIfNeeded()
+        equalPaneWidths?.isActive = false
+        equalPaneWidths = nil
         if panes.count == 2 {
-            splitController.splitView.setPosition(splitController.splitView.bounds.width / 2, ofDividerAt: 0)
+            equalPaneWidths = panes[0].view.widthAnchor.constraint(equalTo: panes[1].view.widthAnchor)
+            equalPaneWidths?.isActive = true
         }
+        splitController.view.layoutSubtreeIfNeeded()
         updateTitle()
     }
 

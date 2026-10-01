@@ -4,6 +4,36 @@ import QuickLookUI
 import QECore
 
 extension UICheck {
+    func checkEqualSplit(_ owner: BrowserWindowController) {
+        let split = owner.splitController.splitView
+        let window = owner.window!
+        func expectEqualWidths() {
+            split.layoutSubtreeIfNeeded()
+            let widths = owner.panes.map { $0.view.frame.width }
+            expect(widths.count == 2 && abs(widths[0] - widths[1]) <= 1 / window.backingScaleFactor,
+                   "Split panes are not equal width: \(widths)")
+        }
+        for width in [780.0, 1060.0, 1281.0] {
+            window.setContentSize(NSSize(width: width, height: 680))
+            expectEqualWidths()
+        }
+        for delta in [-150.0, 150.0] {
+            let start = split.convert(NSPoint(x: split.bounds.midX, y: split.bounds.midY), to: nil)
+            let end = NSPoint(x: start.x + delta, y: start.y)
+            let timestamp = ProcessInfo.processInfo.systemUptime
+            func event(_ type: NSEvent.EventType, _ point: NSPoint, _ offset: Double) -> NSEvent {
+                NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: timestamp + offset,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            }
+            NSApp.postEvent(event(.leftMouseDragged, end, 0.01), atStart: false)
+            NSApp.postEvent(event(.leftMouseUp, end, 0.02), atStart: false)
+            window.sendEvent(event(.leftMouseDown, start, 0))
+            expectEqualWidths()
+        }
+        window.setContentSize(NSSize(width: 1060, height: 680))
+        expectEqualWidths()
+    }
+
     func pressSplitKey(close: Bool = false, in pane: BrowserController) {
         pane.window?.makeKeyAndOrderFront(nil)
         pane.window?.makeFirstResponder(pane.table)
@@ -89,6 +119,7 @@ extension UICheck {
                     self.expect(owner.panes.allSatisfy { $0.scroll.bounds.width >= 380 && $0.scroll.bounds.height > 150 }, "Split panes are too small")
                     self.saveSplitImage("split-small.png")
                     self.browser.window?.setContentSize(NSSize(width: 1060, height: 680))
+                    self.checkEqualSplit(owner)
                     right.navigate(directory.appendingPathComponent("Photos"))
                     self.waitUntil({ !right.isLoading }) { self.checkKeyboard(right, directory: directory) }
                 }
