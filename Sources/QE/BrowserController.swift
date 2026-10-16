@@ -438,12 +438,26 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
     func up() { navigate(current.deletingLastPathComponent()) }
     @objc func enterPath(_ sender: Any?) {
         let path = (pathField.stringValue as NSString).expandingTildeInPath
-        let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : current.appendingPathComponent(path)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            showError(FileProblem.message("Folder not found or inaccessible: \(path)")); return
+        let url: URL
+        if path.lowercased().hasPrefix("file:") {
+            guard let fileURL = URL(string: path), fileURL.isFileURL, !fileURL.path.isEmpty else {
+                showError(FileProblem.message("Invalid file URL: \(path)")); return
+            }
+            url = fileURL.standardizedFileURL
+        } else {
+            url = (path.hasPrefix("/") ? URL(fileURLWithPath: path) : current.appendingPathComponent(path)).standardizedFileURL
         }
-        navigate(url); window?.makeFirstResponder(table)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            showError(FileProblem.message("File or folder not found or inaccessible: \(path)")); return
+        }
+        if isDirectory.boolValue {
+            navigate(url)
+        } else {
+            if !shownHidden, (try? FileEntry(url: url).isHidden) == true { toggleHidden(nil) }
+            navigate(url.deletingLastPathComponent(), reveal: url)
+        }
+        window?.makeFirstResponder(table)
     }
     @objc func focusPath(_ sender: Any?) { window?.makeFirstResponder(pathField); pathField.selectText(nil) }
     @objc func focusSearch(_ sender: Any?) { window?.makeFirstResponder(searchField) }
@@ -484,8 +498,17 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
                 }
                 self.hasParentRow = directory.path != "/"
                 self.table.reloadData()
-                let urls = self.revealURL.map { Set([$0.path]) } ?? self.tabs[self.active].selection
-                self.table.selectRowIndexes(self.rows(matching: urls), byExtendingSelection: false)
+                let rows: IndexSet
+                if let reveal = self.revealURL {
+                    // Directory listings may return /private/var for an entered /var path.
+                    let path = reveal.standardizedFileURL.path
+                    rows = IndexSet(self.entries.indices.filter {
+                        self.entries[$0].url.standardizedFileURL.path == path
+                    }.map { self.row(forEntry: $0) })
+                } else {
+                    rows = self.rows(matching: self.tabs[self.active].selection)
+                }
+                self.table.selectRowIndexes(rows, byExtendingSelection: false)
                 if self.revealURL != nil, let index = self.table.selectedRowIndexes.first { self.table.scrollRowToVisible(index) }
                 else {
                     self.scroll.layoutSubtreeIfNeeded()

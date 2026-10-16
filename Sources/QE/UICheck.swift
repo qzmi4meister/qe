@@ -40,6 +40,12 @@ final class UICheck {
             self.lastPulse = now
         }
         pulse.resume(); self.pulse = pulse
+        if CommandLine.arguments.contains("--path-check") {
+            waitUntil({ !self.browser.isLoading }) {
+                self.checkPaths(self.browser.current) { self.finish() }
+            }
+            return
+        }
         if CommandLine.arguments.contains("--sidebar-check") {
             checkSidebarFolders { self.finish() }
             return
@@ -93,13 +99,95 @@ final class UICheck {
                             self.waitUntil({ !self.browser.isLoading }) {
                                 self.expect(self.browser.selected.first?.lastPathComponent == "needle.txt", "Reveal selection failed")
                                 self.browser.navigate(initial)
-                                self.waitUntil({ !self.browser.isLoading }) { self.checkParentNavigation(initial) }
+                                self.waitUntil({ !self.browser.isLoading }) {
+                                    self.checkPaths(initial) { self.checkParentNavigation(initial) }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+    func checkPaths(_ initial: URL, completion: @escaping () -> Void) {
+        let folder = initial.appendingPathComponent("path-check")
+        let file = folder.appendingPathComponent("Отчёт 100% #1.txt")
+        let hidden = folder.appendingPathComponent(".hidden.txt")
+        let link = folder.appendingPathComponent("link.txt")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("path fixture".utf8).write(to: file)
+            try Data().write(to: hidden)
+            try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+        } catch { failures.append(error.localizedDescription); finish(); return }
+        let cases: [(String, URL, URL?)] = [
+            (file.path, folder, file),
+            (file.absoluteString, folder, file),
+            (file.absoluteString.replacingOccurrences(of: "file:", with: "FILE:"), folder, file),
+            ("./" + file.lastPathComponent, folder, file),
+            ("../path-check/" + file.lastPathComponent, folder, file),
+            (link.path, folder, link),
+            (hidden.absoluteString, folder, hidden),
+            (initial.path, initial, nil),
+            (folder.absoluteString, folder, nil),
+            ("~", FileManager.default.homeDirectoryForCurrentUser, nil)
+        ]
+        let shownHidden = browser.shownHidden
+        func run(_ index: Int) {
+            guard index < cases.count else {
+                for input in [folder.appendingPathComponent("missing.txt").path, "file://[invalid"] {
+                    let current = self.browser.current
+                    let selection = self.browser.selected
+                    var reported = false
+                    let dismiss = Timer(timeInterval: 0.1, repeats: false) { _ in
+                        reported = NSApp.modalWindow != nil
+                        NSApp.abortModal()
+                    }
+                    RunLoop.main.add(dismiss, forMode: .modalPanel)
+                    self.browser.pathField.stringValue = input
+                    self.browser.enterPath(nil)
+                    dismiss.invalidate()
+                    self.expect(reported && self.browser.current == current && self.browser.selected == selection,
+                                "Invalid path did not preserve navigation and report an error: \(input)")
+                }
+                if self.browser.shownHidden != shownHidden { self.browser.toggleHidden(nil) }
+                self.browser.navigate(initial)
+                self.waitUntil({ !self.browser.isLoading }) {
+                    try? FileManager.default.removeItem(at: folder)
+                    self.browser.reload()
+                    self.waitUntil({ !self.browser.isLoading }, then: completion)
+                }
+                return
+            }
+            let (input, directory, selected) = cases[index]
+            if selected == hidden && self.browser.shownHidden { self.browser.toggleHidden(nil) }
+            // An erroneous folder-only rejection must fail the check rather than hang in an alert.
+            let dismiss = Timer(timeInterval: 0.1, repeats: false) { _ in
+                self.failures.append("Path input unexpectedly showed an error: \(input)")
+                NSApp.abortModal()
+            }
+            RunLoop.main.add(dismiss, forMode: .modalPanel)
+            self.browser.focusPath(nil)
+            self.browser.pathField.stringValue = input
+            NSApp.sendAction(self.browser.pathField.action!, to: self.browser.pathField.target, from: self.browser.pathField)
+            dismiss.invalidate()
+            self.waitUntil({ !self.browser.isLoading }) {
+                self.expect(!self.browser.isSearch, "Path did not leave search: \(input)")
+                self.expect(self.browser.current.path == directory.path, "Path opened wrong directory: \(input)")
+                self.expect(self.browser.pathField.stringValue == directory.path, "Path field did not show containing folder: \(input)")
+                if let selected {
+                    self.expect(self.browser.selected.map { $0.standardizedFileURL.path } == [selected.standardizedFileURL.path], "Path did not select file row: \(input); actual=\(self.browser.selected.map(\.path))")
+                    self.expect(self.browser.window?.firstResponder === self.browser.table, "Path did not focus file list: \(input)")
+                    if let row = self.browser.table.selectedRowIndexes.first {
+                        self.expect(self.browser.table.visibleRect.intersects(self.browser.table.rect(ofRow: row)), "Selected path is not visible: \(input)")
+                    }
+                }
+                run(index + 1)
+            }
+        }
+        browser.searchField.stringValue = "path fixture"
+        browser.startSearch(nil)
+        run(0)
     }
     func checkParentNavigation(_ initial: URL) {
         let table = browser.table

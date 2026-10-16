@@ -1,3 +1,11 @@
+# QE 0.9.4 verification
+
+`./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite. The focused path check reproduced the failure before the fix and passed afterward.
+
+- Address-bar checks cover absolute and relative file paths, `file://` URLs, uppercase URL schemes, spaces, Cyrillic names, percent and hash characters, symbolic links, hidden files, folder paths, and `~`.
+- Entering a file leaves search, opens its containing folder, selects its row, scrolls it into view, and focuses the file list. Hidden files become visible. Selection matches both `/var` and `/private/var` spellings.
+- Missing files and malformed file URLs show an error while preserving navigation and selection.
+
 # QE 0.9.3 verification
 
 Checked locally on 02.10.2026 with macOS 26.5.1 and Swift 6.3.2. The final debug build and full UI suite passed. The 18 core scenarios and release-credential guards passed earlier during this change; subsequent edits only affected window layout and UI checks.
