@@ -1,6 +1,8 @@
-# Split sidebars (unreleased)
+# QE 1.0.0 verification
 
 Checked locally on 26.10.2026 with macOS 27.0.1 and Swift 6.3.2. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite. The focused `--sidebar-check` passed, and the release application build succeeded.
+
+The preview was accepted locally. After merging and setting `VERSION` to `1.0.0`, the complete check script passed again on 27.10.2026.
 
 - Both sidebars remain visible on the outer edges, with independent navigation and shared saved folders. Geometry checks cover the 1100-point minimum Split window, restored sessions, and returning the surviving right pane's sidebar to the left.
 - Native divider dragging covers the central divider and both sidebar edges. Single-pane resizing, long folder names, keyboard focus, tab overflow, Split closure and detaching still pass.
