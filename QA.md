@@ -1,3 +1,11 @@
+# QE 1.0.1 verification
+
+Checked locally on 27.10.2026 with macOS 27.0.1, Swift 6.4 and the macOS 27.0 SDK. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite.
+
+- The approved icon has a larger, bold white monogram and a soft graphite reflection at the top, with no inset tile or external margins.
+- The release source matches the approved image. Preview builds generated the icon sizes from 16 to 1024 pixels, passed signature verification, and launched successfully.
+- This release changes the icon and its documentation; application behavior is unchanged.
+
 # QE 1.0.0 verification
 
 Checked locally on 26.10.2026 with macOS 27.0.1 and Swift 6.3.2. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite. The focused `--sidebar-check` passed, and the release application build succeeded.
