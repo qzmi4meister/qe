@@ -39,7 +39,8 @@ with tempfile.TemporaryDirectory(prefix='qe-ui-') as temporary:
         'CFBundleIdentifier': 'local.qe.receiver.' + uuid.uuid4().hex,
         'CFBundleExecutable': 'OpenReceiver', 'CFBundlePackageType': 'APPL', 'LSUIElement': True,
     }))
-    subprocess.run(['swiftc', 'Tests/OpenReceiver/main.swift', '-o', str(executable)], check=True)
+    subprocess.run(['swiftc', '-target', f'{os.uname().machine}-apple-macosx26.0',
+                    'Tests/OpenReceiver/main.swift', '-o', str(executable)], check=True)
     output = Path('.build/ui-check').absolute()
     report = output / 'ui-check.json'
     report.unlink(missing_ok=True)

@@ -51,7 +51,7 @@ For manual installation, [Releases](https://github.com/qzmi4meister/qe/releases)
 - **Go Up**: double-clicking the `..` row opens the parent folder. The row stays above files when sorting and is excluded from file operations. It is hidden at the filesystem root and in search results.
 - **Hidden Files** are shown on first launch. The visibility setting is saved.
 - **Applications** in the sidebar combines shared and system applications like Finder, including Safari; **Utilities** remains a folder. Apps in `~/Applications` are separate. **Desktop** opens the current user's desktop folder.
-- **Sidebar width**: drag the sidebar's right edge to resize it. Long folder names truncate to fit. The selected width is restored when leaving Split mode.
+- **Sidebar width**: drag the sidebar's inner edge to resize it. Long folder names truncate to fit. Split mode keeps a sidebar on each outer edge: folders on the left of the left pane and on the right of the right pane. Each sidebar opens folders in its own pane. Split windows have a minimum width of 1100 points; closing Split returns the remaining sidebar to the left.
 - **Custom folders**: click **+** beside **Folders**, or right-click a folder in the file list and choose **Add Folder to Sidebar**. Adding the same folder again does not create a duplicate. Links are shared across windows and panes and survive restarting QE. Right-click a custom link and choose **Remove from Sidebar** to remove it without deleting the folder. Built-in folders cannot be removed. Links store paths: if a folder is moved, renamed, or unavailable, clicking its link offers to remove it or cancel without leaving the current folder.
 - **External disks** appear in the sidebar. Removable volumes have an eject button.
 

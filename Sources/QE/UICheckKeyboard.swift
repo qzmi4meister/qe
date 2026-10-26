@@ -57,13 +57,13 @@ extension UICheck {
             pane.tabs += (1...9).map { BrowserTab($0 == 9 ? directory.appendingPathComponent("Documents") : pane.current) }
             pane.rebuildTabs()
             checkTabRow(pane)
-            window.setContentSize(NSSize(width: 780, height: 560))
+            window.setContentSize(NSSize(width: 1100, height: 560))
             owner.splitController.view.layoutSubtreeIfNeeded()
             checkTabRow(pane)
-            expect(abs(window.contentView!.bounds.width - 780) < 2 && pane.view.bounds.width < 400, "Tab overflow expanded the window or split pane")
+            expect(abs(window.contentView!.bounds.width - 1100) < 2 && pane.view.bounds.width < 570, "Tab overflow expanded the window or split pane")
             expect((pane.tabsStack.arrangedSubviews.first?.frame.width ?? 175) < 60, "Overflow tabs did not shrink")
             saveSplitImage("tabs-overflow.png")
-            window.setContentSize(NSSize(width: 1060, height: 680))
+            window.setContentSize(NSSize(width: 1281, height: 680))
             for (index, key) in keys.enumerated() {
                 pressKey(key.0, code: key.1, modifiers: .command, in: pane)
                 expect(pane.active == index && owner.activePane === pane, "Command + \(key.0) chose wrong tab or pane")

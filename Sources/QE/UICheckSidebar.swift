@@ -63,7 +63,7 @@ extension UICheck {
         }
         NSApp.postEvent(event(.leftMouseDragged, end, 0.01), atStart: false)
         NSApp.postEvent(event(.leftMouseUp, end, 0.02), atStart: false)
-        window.sendEvent(event(.leftMouseDown, start, 0))
+        split.mouseDown(with: event(.leftMouseDown, start, 0))
         window.contentView?.layoutSubtreeIfNeeded()
         let expandedWidth = pane.sidebarScroll.frame.width
         expect(expandedWidth > initialWidth + 100, "Dragging the sidebar divider did not expand it")
@@ -72,8 +72,8 @@ extension UICheck {
         saveSplitImage("sidebar-wide.png")
         pane.setCompact(true)
         window.contentView?.layoutSubtreeIfNeeded()
-        expect(pane.bodySplitController.splitViewItems[0].isCollapsed && pane.scroll.frame.width > 700,
-               "Compact pane did not reclaim sidebar space")
+        expect(!pane.bodySplitController.splitViewItems[0].isCollapsed && abs(pane.sidebarScroll.frame.width - expandedWidth) < 2,
+               "Compact toolbar hid or resized the sidebar")
         pane.setCompact(false)
         window.contentView?.layoutSubtreeIfNeeded()
         expect(abs(pane.sidebarScroll.frame.width - expandedWidth) < 2, "Leaving compact mode lost sidebar width")
@@ -141,6 +141,11 @@ extension UICheck {
             }
             self.expect(other.sidebarFolderPaths == [folder.path], "Sidebar did not add exactly one link for duplicate picks")
             self.expect(app.browsers.allSatisfy { self.sidebarButton(folder.path, in: $0) != nil }, "Added link did not reach all windows and Split panes")
+            self.checkSidebarLayout(self.browser.owner!)
+            let leftPath = self.browser.current
+            self.sidebarButton(folder.path, in: right)?.performClick(nil)
+            self.expect(right.current.path == folder.path && self.browser.current == leftPath,
+                        "Right sidebar navigated the wrong pane")
             for pane in app.browsers {
                 let folderButtons = self.views(in: pane.sidebar).compactMap { $0 as? NSButton }.filter { $0.toolTip?.hasPrefix("/") == true }
                 self.expect(Array(folderButtons.prefix(4).map(\.title)) == ["Home", "Applications", "Desktop", "Downloads"], "Built-in folders changed order")
@@ -152,6 +157,7 @@ extension UICheck {
             restored.stop()
             self.browser.owner!.removePane(right)
             self.checkSidebarResize(self.browser, folder: folder)
+            self.checkSurvivingRightSidebar(folder: folder)
             self.saveSplitImage("sidebar-folders.png")
             other.navigate(root)
             self.waitUntil({ !other.isLoading }) {
@@ -171,6 +177,55 @@ extension UICheck {
                 }
             }
         }
+    }
+
+    func checkSidebarLayout(_ owner: BrowserWindowController) {
+        owner.splitController.view.layoutSubtreeIfNeeded()
+        for (index, pane) in owner.panes.enumerated() {
+            let split = pane.bodySplitController.splitView
+            let sidebar = pane.sidebarScroll.convert(pane.sidebarScroll.bounds, to: split)
+            let files = pane.scroll.convert(pane.scroll.bounds, to: split)
+            expect(pane.bodySplitController.splitViewItems.allSatisfy { !$0.isCollapsed }, "Sidebar collapsed in Split")
+            expect(sidebar.width >= 149 && files.width >= 379, "Sidebar or file list is below its minimum width")
+            expect(index == 0 ? sidebar.maxX <= files.minX : files.maxX <= sidebar.minX,
+                   "Sidebar is on the wrong edge of pane \(index)")
+        }
+    }
+
+    func checkSurvivingRightSidebar(folder: URL) {
+        let owner = BrowserWindowController(tabs: [BrowserTab(folder)], active: 0, preferences: browser.preferences)
+        let left = owner.activePane
+        let right = BrowserController(tabs: [BrowserTab(folder)], preferences: browser.preferences)
+        owner.showWindow(nil)
+        owner.addPane(right)
+        checkSidebarLayout(owner)
+        owner.window?.setContentSize(NSSize(width: 1500, height: 680))
+        owner.restoreSplitFraction(0.5)
+        for pane in owner.panes {
+            let split = pane.bodySplitController.splitView
+            let divider = split.subviews[0].frame.maxX
+            let start = split.convert(NSPoint(x: divider + split.dividerThickness / 2, y: split.bounds.midY), to: nil)
+            let width = pane.sidebarScroll.frame.width
+            let end = NSPoint(x: start.x + (pane === left ? 40 : -40), y: start.y)
+            let timestamp = ProcessInfo.processInfo.systemUptime
+            func event(_ type: NSEvent.EventType, _ point: NSPoint, _ offset: Double) -> NSEvent {
+                NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: timestamp + offset,
+                    windowNumber: owner.window!.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            }
+            NSApp.postEvent(event(.leftMouseDragged, end, 0.01), atStart: false)
+            NSApp.postEvent(event(.leftMouseUp, end, 0.02), atStart: false)
+            split.mouseDown(with: event(.leftMouseDown, start, 0))
+            split.layoutSubtreeIfNeeded()
+            expect(abs(pane.sidebarScroll.frame.width - width - 40) < 2, "Sidebar divider did not resize on its inner edge")
+        }
+        checkSidebarLayout(owner)
+        owner.closeSplit(keeping: right)
+        expect(owner.panes.count == 1 && owner.activePane === right && left.owner == nil, "Close Split did not keep the right pane")
+        checkSidebarLayout(owner)
+        expect(owner.window?.contentMinSize.width == 780, "Single pane did not restore minimum window width")
+        owner.window?.setContentSize(NSSize(width: 780, height: 560))
+        checkSidebarLayout(owner)
+        owner.window?.performClose(nil)
     }
 
     func checkSidebarRemoval(_ pane: BrowserController, folder: URL, moved: URL) {

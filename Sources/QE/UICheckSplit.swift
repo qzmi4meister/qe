@@ -9,6 +9,8 @@ extension UICheck {
         let window = owner.window!
         split.layoutSubtreeIfNeeded()
         expect(abs(owner.splitFraction - 0.5) < 0.002, "New Split is not centered")
+        window.setContentSize(NSSize(width: 1500, height: 680))
+        owner.restoreSplitFraction(0.5)
         for delta in [-100.0, 200.0] {
             let leftWidth = owner.panes[0].view.frame.width
             let start = split.convert(NSPoint(x: leftWidth + split.dividerThickness / 2, y: split.bounds.midY), to: nil)
@@ -20,9 +22,11 @@ extension UICheck {
             }
             NSApp.postEvent(event(.leftMouseDragged, end, 0.01), atStart: false)
             NSApp.postEvent(event(.leftMouseUp, end, 0.02), atStart: false)
-            window.sendEvent(event(.leftMouseDown, start, 0))
+            // macOS 27 defers window-dispatched mouseDown past the queued mouseUp.
+            split.mouseDown(with: event(.leftMouseDown, start, 0))
             split.layoutSubtreeIfNeeded()
-            expect(abs(owner.panes[0].view.frame.width - leftWidth - delta) < 2, "Split divider did not follow the drag")
+            expect(abs(owner.panes[0].view.frame.width - leftWidth - delta) < 2,
+                   "Split divider did not follow the drag: start=\(leftWidth), delta=\(delta), panes=\(owner.panes.map { $0.view.frame.width }), sidebars=\(owner.panes.map { $0.sidebarScroll.frame.width })")
         }
     }
 
@@ -67,11 +71,21 @@ extension UICheck {
         timer.invalidate()
     }
 
-    func confirmDirectory(_ picker: NSOpenPanel) {
+    func confirmDirectory(_ picker: NSOpenPanel, attempts: Int = 40) {
         // NSSavePanel.ok(_:) is unimplemented on macOS 26. Complete its modal session
         // with the actual selected URL; keep the checks on destination and file contents.
-        expect(picker.url?.resolvingSymlinksInPath() == picker.directoryURL?.resolvingSymlinksInPath(),
-               "Folder picker did not select the intended destination")
+        // The remote picker can still hold the previous selection while loading a folder.
+        guard let selected = picker.url?.resolvingSymlinksInPath().path,
+              selected == picker.directoryURL?.resolvingSymlinksInPath().path else {
+            guard attempts > 0 else {
+                failures.append("Folder picker did not select the intended destination: \(String(describing: picker.url)) != \(String(describing: picker.directoryURL))")
+                NSApp.stopModal(withCode: .cancel)
+                return
+            }
+            let timer = Timer(timeInterval: 0.05, repeats: false) { _ in self.confirmDirectory(picker, attempts: attempts - 1) }
+            RunLoop.main.add(timer, forMode: .modalPanel)
+            return
+        }
         NSApp.stopModal(withCode: .OK)
     }
 
@@ -107,11 +121,13 @@ extension UICheck {
                     self.expect(owner.activePane === self.browser, "Pane focus did not follow first responder")
                     self.expect(NSApp.target(forAction: #selector(BrowserController.copyTo(_:))) as? BrowserController === self.browser, "Menu does not target left pane")
                     self.checkResizableSplit(owner)
-                    self.browser.window?.setContentSize(NSSize(width: 780, height: 560))
+                    self.expect(self.browser.window?.contentMinSize.width == 1100, "Split did not raise minimum window width")
+                    self.browser.window?.setContentSize(NSSize(width: 1100, height: 560))
                     owner.splitController.view.layoutSubtreeIfNeeded()
                     self.expect(owner.panes.allSatisfy { $0.scroll.bounds.width >= 380 && $0.scroll.bounds.height > 150 }, "Split panes are too small")
+                    self.checkSidebarLayout(owner)
                     self.saveSplitImage("split-small.png")
-                    self.browser.window?.setContentSize(NSSize(width: 1060, height: 680))
+                    self.browser.window?.setContentSize(NSSize(width: 1281, height: 680))
                     right.navigate(directory.appendingPathComponent("Photos"))
                     self.waitUntil({ !right.isLoading }) { self.checkKeyboard(right, directory: directory) }
                 }
@@ -255,7 +271,7 @@ extension UICheck {
         right.operation = nil
         chooseSearchScope(false, in: right)
         expect(browser.searchIncludesSubfolders, "Right search scope changed the left pane")
-        browser.window?.setContentSize(NSSize(width: 1281, height: 680))
+        browser.window?.setContentSize(NSSize(width: 1501, height: 680))
         owner.restoreSplitFraction(0.62)
         let fraction = owner.splitFraction
         expect(abs(fraction - 0.62) < 0.002, "Could not set asymmetric Split fixture")
@@ -270,12 +286,18 @@ extension UICheck {
         expect(restored.windows.first?.focusedPane == 1, "Split session lost active pane")
         expect(restored.browsers.map(\.searchIncludesSubfolders) == [true, false], "Split session lost independent search scopes")
         expect(abs((restored.windows.first?.splitFraction ?? 0) - fraction) < 0.002, "Split session lost divider position")
+        if let window = restored.windows.first { checkSidebarLayout(window) }
         for window in restored.windows { window.window?.performClose(nil) }
         var legacy = browser.preferences.array(forKey: "windows") as! [[String: Any]]
         legacy[0].removeValue(forKey: "splitFraction")
+        legacy[0]["frame"] = NSStringFromRect(NSRect(x: 100, y: 100, width: 780, height: 560))
         restored.preferences.set(legacy, forKey: "windows")
         restored.restoreWindows()
         expect(abs((restored.windows.first?.splitFraction ?? 0) - 0.5) < 0.002, "Legacy Split session is not centered")
+        if let window = restored.windows.first {
+            expect((window.window?.contentView?.bounds.width ?? 0) >= 1100, "Legacy Split window stayed too narrow")
+            checkSidebarLayout(window)
+        }
         for window in restored.windows { window.window?.performClose(nil) }
         restored.preferences.removePersistentDomain(forName: restoreSuite)
         browser.window?.makeKeyAndOrderFront(nil)

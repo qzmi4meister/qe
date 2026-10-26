@@ -1,3 +1,13 @@
+# Split sidebars (unreleased)
+
+Checked locally on 26.10.2026 with macOS 27.0.1 and Swift 6.3.2. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite. The focused `--sidebar-check` passed, and the release application build succeeded.
+
+- Both sidebars remain visible on the outer edges, with independent navigation and shared saved folders. Geometry checks cover the 1100-point minimum Split window, restored sessions, and returning the surviving right pane's sidebar to the left.
+- Native divider dragging covers the central divider and both sidebar edges. Single-pane resizing, long folder names, keyboard focus, tab overflow, Split closure and detaching still pass.
+- An asymmetric 62/38 split survives restoration at 1501 points. Older 780-point Split windows expand to the new minimum when restored.
+- Updated the UI harness for this system: native divider handlers avoid delayed window mouse events, folder confirmation waits for the remote picker's current selection, and the disposable receiver explicitly targets macOS 26. Earlier runs exposed these harness failures; the final full run reports no failures.
+- Captures: `.build/ui-check/split-small.png` and `.build/ui-check/split.png`. Full report: `.build/ui-check/ui-check.json`.
+
 # QE 0.9.4 verification
 
 `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite. The focused path check reproduced the failure before the fix and passed afterward.

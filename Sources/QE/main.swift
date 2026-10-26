@@ -38,8 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             controller.addPane(right)
         }
         if let frame, let window = browser.window {
-            let rect = NSRectFromString(frame)
+            var rect = NSRectFromString(frame)
             if rect.width >= 780 && rect.height >= 450 {
+                let minimum = window.frameRect(forContentRect: NSRect(origin: .zero, size: window.contentMinSize)).size
+                rect.size.width = max(rect.width, minimum.width)
+                rect.size.height = max(rect.height, minimum.height)
                 window.setFrame(window.constrainFrameRect(rect, to: window.screen), display: false)
             }
         } else if let previous {

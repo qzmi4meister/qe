@@ -33,7 +33,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     func addPane(_ pane: BrowserController) {
         pane.owner = self
         let item = NSSplitViewItem(viewController: pane)
-        item.minimumThickness = 390
+        item.minimumThickness = 531 // 150 sidebar + 1 divider + 380 file list.
         // Keep restored widths above the default content hugging priority.
         item.holdingPriority = NSLayoutConstraint.Priority(251)
         splitController.addSplitViewItem(item)
@@ -41,8 +41,18 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func updateLayout() {
-        for pane in panes { pane.setCompact(panes.count == 2); pane.rebuildTabs() }
+        let isSplit = panes.count == 2
+        if let window {
+            window.contentMinSize = NSSize(width: isSplit ? 1100 : 780, height: 450)
+            if let size = window.contentView?.bounds.size, size.width < window.contentMinSize.width {
+                window.setContentSize(NSSize(width: window.contentMinSize.width, height: size.height))
+            }
+        }
         restoreSplitFraction(0.5)
+        for (index, pane) in panes.enumerated() {
+            pane.setCompact(isSplit, sidebarOnRight: isSplit && index == 1)
+            pane.rebuildTabs()
+        }
         updateTitle()
     }
 

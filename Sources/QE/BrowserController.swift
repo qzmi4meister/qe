@@ -219,8 +219,18 @@ final class BrowserController: NSViewController, NSTableViewDataSource, NSTableV
         view = root
     }
 
-    func setCompact(_ compact: Bool) {
-        bodySplitController.splitViewItems[0].isCollapsed = compact
+    func setCompact(_ compact: Bool, sidebarOnRight: Bool = false) {
+        let items = bodySplitController.splitViewItems
+        let sidebarItem = items.first { $0.viewController.view === sidebarScroll }!
+        let sidebarIndex = sidebarOnRight ? 1 : 0
+        if items[sidebarIndex] !== sidebarItem {
+            let width = sidebarScroll.frame.width
+            bodySplitController.removeSplitViewItem(sidebarItem)
+            bodySplitController.insertSplitViewItem(sidebarItem, at: sidebarIndex)
+            let split = bodySplitController.splitView
+            split.layoutSubtreeIfNeeded()
+            split.setPosition(sidebarOnRight ? split.bounds.width - split.dividerThickness - width : width, ofDividerAt: 0)
+        }
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("name"))?.width = compact ? 180 : 390
         for button in creationButtons {
             button.imagePosition = compact ? .imageOnly : .imageLeading
