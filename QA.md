@@ -6,6 +6,7 @@ Checked locally on 08.11.2026. `./scripts/check.sh` passed all 19 core scenarios
 - UI checks exercise the secure password field, retry message, opening the extracted folder, and cancellation without navigation or partial output.
 - The archive worker also extracted a password-protected ZIP when started from a terminal, reading its password from stdin after detaching from the terminal.
 - Existing archive round trips, cancellation escalation, blocked disk I/O, and unsafe-path checks still pass.
+- Packaging now asks Swift for its release output directory. The current toolchain writes to `.build/out/Products/Release`; the former hard-coded path could silently package an older binary.
 
 # QE 1.0.1 verification
 

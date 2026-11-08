@@ -7,9 +7,10 @@ if ! printf '%s\n' "$version" | /usr/bin/grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; th
     exit 1
 fi
 swift build -c release --arch arm64 --product QE
+bin_dir=$(swift build -c release --arch arm64 --show-bin-path)
 app_dir="${QE_APP_DIR:-$PWD/dist/QE.app}"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
-cp .build/arm64-apple-macosx/release/QE "$app_dir/Contents/MacOS/QE"
+cp "$bin_dir/QE" "$app_dir/Contents/MacOS/QE"
 /usr/bin/strip -S "$app_dir/Contents/MacOS/QE"
 cp LICENSE "$app_dir/Contents/Resources/LICENSE"
 iconset_dir="$PWD/.build/QE.iconset"
