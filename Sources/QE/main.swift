@@ -1,4 +1,5 @@
 import AppKit
+import QECore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var windows: [BrowserWindowController] = []
@@ -118,6 +119,8 @@ struct QuitProblem: LocalizedError {
     var pendingMessage: String? = nil
     var errorDescription: String? { pendingMessage ?? "Wait for the operation to finish or cancel it before quitting." }
 }
+
+Archives.runWorkerIfRequested()
 
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)

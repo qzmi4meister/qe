@@ -76,6 +76,8 @@ Changing scope reruns the current query. Clearing the field returns to the direc
 
 Double-clicking a ZIP or 7z archive extracts it into a folder beside the archive and opens that folder in QE. If the folder already exists, QE chooses a free name. The original archive is preserved.
 
+Password-protected ZIP archives (ZipCrypto and AES) prompt for a password. If it is incorrect, QE asks again; Cancel stops extraction and removes temporary output. Passwords are not saved.
+
 **Extract…** offers a choice of destination. **Create ZIP…** and **Create 7z…** in the context menu create archives from selected items in the same folder.
 
 ### File associations
@@ -115,7 +117,7 @@ Depending on keyboard settings, F2–F8 may require **Fn / 🌐** to activate th
 - Copy cancellation is checked between items. A single large file may finish copying before cancellation takes effect.
 - Cancelling an operation preserves already completed items. There is no general undo.
 - If an archiver remains blocked on disk access after cancellation, QE keeps its operation active and preserves temporary output. Normal closing stays blocked. Finish other operations before using macOS Force Quit; the archiver and temporary files may remain.
-- Password-protected and multipart archives are unsupported.
+- Password-protected 7z and multipart archives are unsupported. ZIP passwords must fit within 1023 UTF-8 bytes and contain no line breaks or null characters.
 - Adding an extension to an empty file does not create a Word document, spreadsheet, or other structured format.
 - Search operates on names, excludes application-bundle contents, and does not follow symbolic links.
 

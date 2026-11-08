@@ -1,3 +1,12 @@
+# QE 1.0.2 verification
+
+Checked locally on 08.11.2026. `./scripts/check.sh` passed all 19 core scenarios, release-credential guards, and the full UI suite.
+
+- ZipCrypto and AES-256 extraction checks cover Unicode passwords, spaces and punctuation, an incorrect password followed by the correct one, cancellation, invalid input, source preservation, and temporary-output cleanup.
+- UI checks exercise the secure password field, retry message, opening the extracted folder, and cancellation without navigation or partial output.
+- The archive worker also extracted a password-protected ZIP when started from a terminal, reading its password from stdin after detaching from the terminal.
+- Existing archive round trips, cancellation escalation, blocked disk I/O, and unsafe-path checks still pass.
+
 # QE 1.0.1 verification
 
 Checked locally on 27.10.2026 with macOS 27.0.1, Swift 6.4 and the macOS 27.0 SDK. `./scripts/check.sh` passed all 18 core scenarios, release-credential guards, and the full UI suite.

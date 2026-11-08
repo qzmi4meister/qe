@@ -40,13 +40,28 @@ extension BrowserController {
         let directory = current
         runOperation("Extracting…") { [weak self] token, report in
             let destination = Files.availableName(for: archive.deletingPathExtension())
-            try Archives.extract(archive, to: destination, cancellation: token, report: report)
+            try Archives.extract(archive, to: destination, cancellation: token, report: report, password: { [weak self] retry in
+                DispatchQueue.main.sync { self?.archivePassword(archive, retry: retry, cancellation: token) }
+            })
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.tabs[self.active].id == tabID, self.current == directory else { return }
                 self.navigate(destination)
             }
             return "Extracted: \(destination.lastPathComponent)"
         }
+    }
+
+    func archivePassword(_ archive: URL, retry: Bool, cancellation: Cancellation) -> String? {
+        guard !cancellation.isCancelled else { return nil }
+        let alert = NSAlert()
+        alert.messageText = "Password for “\(archive.lastPathComponent)”"
+        alert.informativeText = retry ? "The password was not accepted. Try again." : "Enter the password to extract this archive."
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        field.setAccessibilityLabel("Archive password")
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Extract"); alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
     }
 
     @objc func openWith(_ sender: Any?) {

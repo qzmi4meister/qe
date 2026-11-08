@@ -264,6 +264,54 @@ final class FileTests {
         }
     }
 
+    func testPasswordProtectedZIP() throws {
+        let source = try file("secret.txt", data: Data("encrypted contents".utf8))
+        let secret = "пароль with spaces $'\"-"
+        for aes in [false, true] {
+            let archive = root.appendingPathComponent(aes ? "aes.zip" : "encrypted.zip")
+            let writer = Process()
+            writer.executableURL = URL(fileURLWithPath: aes ? "/usr/bin/tar" : "/usr/bin/zip")
+            writer.currentDirectoryURL = root
+            writer.arguments = aes
+                ? ["-c", "--format=zip", "--options", "zip:encryption=aes256", "--passphrase", secret, "-f", archive.path, source.lastPathComponent]
+                : ["-q", "-P", secret, archive.path, source.lastPathComponent]
+            try writer.run(); writer.waitUntilExit()
+            expectEqual(writer.terminationStatus, 0)
+            let original = try Data(contentsOf: archive)
+            let output = root.appendingPathComponent("output")
+            var prompts: [Bool] = []
+            try Archives.extract(archive, to: output, cancellation: Cancellation(), password: { retry in
+                prompts.append(retry)
+                return retry ? secret : "wrong"
+            })
+            expectEqual(prompts, [false, true])
+            expectEqual(try Data(contentsOf: output.appendingPathComponent(source.lastPathComponent)), try Data(contentsOf: source))
+            expectEqual(try Data(contentsOf: archive), original)
+            try FileManager.default.removeItem(at: output)
+            for mode in ["cancel", "wrong-then-cancel", "missing", "invalid"] {
+                let destination = root.appendingPathComponent(mode)
+                var calls = 0
+                do {
+                    try Archives.extract(archive, to: destination, cancellation: Cancellation(), password: { retry in
+                        calls += 1
+                        if mode == "missing" { throw FileProblem.message("Password unavailable") }
+                        if mode == "invalid" { return "line\nbreak" }
+                        return mode == "wrong-then-cancel" && !retry ? "wrong" : nil
+                    })
+                    expectTrue(false, "Password extraction unexpectedly succeeded: \(mode)")
+                } catch is CancellationError {
+                    expectTrue(["cancel", "wrong-then-cancel"].contains(mode))
+                } catch {
+                    expectTrue(["missing", "invalid"].contains(mode))
+                }
+                expectEqual(calls, mode == "wrong-then-cancel" ? 2 : 1)
+                expectFalse(Files.exists(destination))
+                expectFalse(try Files.list(root, hidden: true).contains { $0.name.hasPrefix(".qe-") })
+                expectEqual(try Data(contentsOf: archive), original)
+            }
+        }
+    }
+
     func testArchiveDestinationInsideSourceRejected() throws {
         let source = try folder("source")
         expectError(try Archives.create([source], at: source.appendingPathComponent("loop.zip"), format: "zip", cancellation: Cancellation()))
@@ -481,6 +529,7 @@ func unwrap<T>(_ value: T?) throws -> T {
 
 @main struct CoreChecks {
     static func main() throws {
+        Archives.runWorkerIfRequested()
         let tests = FileTests()
         let cases: [(String, () throws -> Void)] = [
             ("create, rename, hidden and no overwrite", tests.testCreateRenameHiddenAndNoOverwrite),
@@ -496,6 +545,7 @@ func unwrap<T>(_ value: T?) throws -> T {
             ("recursive name search", tests.testSearchNamesHiddenAndNoLinkCycles),
             ("search scope, hidden files and cancellation", tests.testSearchScope),
             ("ZIP/7z round trips", tests.testArchiveRoundTripAndLiteralNames),
+            ("password-protected ZIP, retry and cancellation", tests.testPasswordProtectedZIP),
             ("archive destination validation", tests.testArchiveDestinationInsideSourceRejected),
             ("corrupt and cancelled archives", tests.testCorruptAndCancelledArchivesLeaveNoOutput),
             ("archive process exit, cancellation and escalation", tests.testArchiveProcessCancellation),

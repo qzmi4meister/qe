@@ -322,8 +322,10 @@ extension BrowserController {
         guard let name = namePrompt(title: "Extraction Folder", value: suggestion.lastPathComponent, confirm: "Extract") else { return }
         do {
             let destination = try Files.named(name, in: parent)
-            runOperation("Extracting…") { token, report in
-                try Archives.extract(archive, to: destination, cancellation: token, report: report)
+            runOperation("Extracting…") { [weak self] token, report in
+                try Archives.extract(archive, to: destination, cancellation: token, report: report, password: { [weak self] retry in
+                    DispatchQueue.main.sync { self?.archivePassword(archive, retry: retry, cancellation: token) }
+                })
                 return "Extracted: \(destination.lastPathComponent)"
             }
         } catch { showError(error) }

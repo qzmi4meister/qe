@@ -463,12 +463,66 @@ final class UICheck {
                         self.expect(self.browser.current == photos, "Extraction interrupted later navigation")
                         self.expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("sample (3)/Notes.md").path), "Repeated extraction failed")
                         self.browser.navigate(directory)
-                        self.waitUntil({ !self.browser.isLoading }) { self.checkOpening() }
+                        self.waitUntil({ !self.browser.isLoading }) { self.checkPasswordArchiveOpening(directory) }
                     }
                 }
             }
         }
     }
+    func checkPasswordArchiveOpening(_ directory: URL) {
+        let archive = directory.appendingPathComponent("protected.zip")
+        let destination = directory.appendingPathComponent("protected")
+        let writer = Process()
+        writer.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        writer.currentDirectoryURL = directory
+        writer.arguments = ["-q", "-P", "test password", archive.path, "Notes.md"]
+        do { try writer.run(); writer.waitUntilExit() }
+        catch { failures.append(error.localizedDescription); finish(); return }
+        expect(writer.terminationStatus == 0, "Encrypted ZIP fixture failed")
+        var prompts = 0
+        let answer = Timer(timeInterval: 0.05, repeats: true) { _ in
+            guard let content = NSApp.modalWindow?.contentView else { return }
+            guard let field = self.views(in: content).compactMap({ $0 as? NSSecureTextField }).first else {
+                self.failures.append("Expected a secure archive password field"); NSApp.abortModal(); return
+            }
+            prompts += 1
+            if prompts == 2 {
+                self.expect(self.text(in: content).contains("The password was not accepted. Try again."), "Password retry explanation missing")
+            }
+            field.stringValue = prompts == 1 ? "wrong" : "test password"
+            NSApp.stopModal(withCode: .alertFirstButtonReturn)
+        }
+        RunLoop.main.add(answer, forMode: .common)
+        RunLoop.main.add(answer, forMode: .modalPanel)
+        browser.openFile(archive)
+        waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
+            answer.invalidate()
+            self.expect(prompts == 2, "Encrypted ZIP did not request and retry password")
+            self.expect(self.browser.current == destination, "Encrypted ZIP did not open extracted folder")
+            self.expect((try? Data(contentsOf: destination.appendingPathComponent("Notes.md"))) == (try? Data(contentsOf: directory.appendingPathComponent("Notes.md"))), "Encrypted ZIP contents differ")
+            self.browser.navigate(directory)
+            self.waitUntil({ !self.browser.isLoading }) {
+                var cancelled = false
+                let cancel = Timer(timeInterval: 0.05, repeats: true) { _ in
+                    guard let content = NSApp.modalWindow?.contentView else { return }
+                    cancelled = self.views(in: content).contains { $0 is NSSecureTextField }
+                    NSApp.stopModal(withCode: .alertSecondButtonReturn)
+                }
+                RunLoop.main.add(cancel, forMode: .common)
+                RunLoop.main.add(cancel, forMode: .modalPanel)
+                self.browser.openFile(archive)
+                self.waitUntil({ self.browser.operation == nil && !self.browser.isLoading }) {
+                    cancel.invalidate()
+                    self.expect(cancelled, "Password cancellation dialog missing")
+                    self.expect(self.browser.current == directory, "Password cancellation changed directory")
+                    self.expect(self.browser.completionMessage == "Operation cancelled", "Password cancellation reported an error")
+                    self.expect(!Files.exists(directory.appendingPathComponent("protected (2)")), "Cancelled ZIP published output")
+                    self.checkOpening()
+                }
+            }
+        }
+    }
+
     func checkOpening() {
         guard let index = CommandLine.arguments.firstIndex(of: "--open-check-app"), CommandLine.arguments.indices.contains(index + 1) else { finish(); return }
         let application = URL(fileURLWithPath: CommandLine.arguments[index + 1])
